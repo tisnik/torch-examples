@@ -1,0 +1,1368 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Torch: framework pro strojové učení i pro zpracování vektorů a tenzorů</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Torch: framework pro strojové učení i pro zpracování vektorů a tenzorů</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V dnešním článku se seznámíme se základními vlastnostmi frameworku Torch, který je používaný v oboru strojového učení (machine learning), ale i pro &bdquo;obyčejné&ldquo; zpracování vektorů a tenzorů. Pro psaní skriptů se sice používá jazyk Lua, interně je ovšem framework postavený na C a na platformě CUDA.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Torch: framework pro strojové učení i pro zpracování vektorů a tenzorů</a></p>
+<p><a href="#k02">2. Instalace frameworku Torch</a></p>
+<p><a href="#k03">3. První spuštění interaktivního prostředí</a></p>
+<p><a href="#k04">4. Základní datová struktura, s&nbsp;níž se ve frameworku Torch pracuje</a></p>
+<p><a href="#k05">5. Základní konstruktory tenzorů</a></p>
+<p><a href="#k06">6. Použití konstruktoru <strong>zeros</strong></a></p>
+<p><a href="#k07">7. Použití konstruktoru <strong>ones</strong></a></p>
+<p><a href="#k08">8. Použití konstruktoru <strong>range</strong></a></p>
+<p><a href="#k09">9. Způsob uložení tenzorů v&nbsp;paměti počítače</a></p>
+<p><a href="#k10">10. Manipulace s&nbsp;objektem typu <strong>Storage</strong></a></p>
+<p><a href="#k11">11. Operace <strong>sub</strong> aplikovaná na vektory</a></p>
+<p><a href="#k12">12. Operace <strong>sub</strong> aplikovaná na matice a tenzory vyšších řádů</a></p>
+<p><a href="#k13">13. Operace <strong>narrow</strong> aplikovaná na vektory</a></p>
+<p><a href="#k14">14. Operace <strong>narrow</strong> aplikovaná na matice a tenzory vyšších řádů</a></p>
+<p><a href="#k15">15. Operace <strong>sub</strong> a <strong>narrow</strong> ve funkci zapisovatelných pohledů</a></p>
+<p><a href="#k16">16. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k17">17. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Torch: framework pro strojové učení i pro zpracování vektorů a tenzorů</h2>
+
+<p>Jednou poměrně rozsáhlou oblastí v&nbsp;IT je zpracování vektorů, matic i
+tenzorů, protože s&nbsp;těmito strukturami se můžeme setkat v&nbsp;různých
+disciplínách, například ve finančnictví, pojišťovnictví, statistice, zpracování
+numerických dat, simulacích, strojovém učení atd. Současně se jedná i o velmi
+zajímavou oblast, neboť právě kvůli co nejrychlejší práci s&nbsp;velkými
+maticemi byly vytvořeny speciální výpočetní bloky v&nbsp;některých
+superpočítačích (příkladem mohou být superpočítače <i>Cray</i>). Současné
+knihovny dokážou v&nbsp;případě potřeby využít jak některá rozšíření
+instrukčních sad (SIMD instrukce typu SSE, původně též MMX či 3DNow!, viz též
+<a
+href="https://www.root.cz/clanky/instrukcni-sada-aarch64-technologie-neon/">úterní
+článek na toto téma</a>), tak i programovatelné grafické akcelerátory
+(GPU, v&nbsp;současnosti je lídrem v&nbsp;tomto oboru NVidia s&nbsp;GPU
+Tesla).</p>
+
+<p>Práce s&nbsp;vektory a maticemi byla (a samozřejmě doposud je) podporována
+v&nbsp;překladačích FORTRANu, které začaly být po vzniku superpočítačů vybaveny
+algoritmy, které dokázaly převést některé typy programových smyček na
+&bdquo;vektorové operace&ldquo;. Paralelně vznikly i specializované jazyky
+určené téměř výhradně pro práci s&nbsp;vektory i maticemi &ndash; příkladem
+jsou jazyky <i>APL</i> a <i>J</i>.</p>
+
+<p>V&nbsp;současnosti je používáno relativně velké množství programovacích
+jazyků popř.&nbsp;specializovaných knihoven orientovaných na práci
+s&nbsp;vektory, maticemi, tenzory atd. Z&nbsp;komerčních nástrojů je zapotřebí
+jmenovat především známý <i>MATLAB</i> vydávaný společností <i>MathWorks</i>,
+nativní práci s&nbsp;maticemi a vektory ovšem velmi dobře podporuje také
+nástroj <a
+href="https://www.gnu.org/software/octave/doc/interpreter/Matrices.html">GNU
+Octave</a> (<a
+href="https://gnu.org/software/octave/">https://gnu.org/software/octave/</a>),
+<a href="http://www.ats.ucla.edu/stat/r/library/matrix_alg.htm">jazyk R</a> (<a
+href="http://www.r-project.org/">http://www.r-project.org/</a>) a také
+relativně nový jazyk <a
+href="https://www.root.cz/serialy/programovaci-jazyk-julia/">Julia</a> (<a
+href="http://julialang.org/">http://julialang.org/</a>, zajímavé výsledky
+benchmarků lze najít na adrese <a
+href="http://julialang.org/benchmarks/">http://julialang.org/benchmarks/</a>).
+Z&nbsp;knihoven jmenujme především oblíbenou a dnes dosti intenzivně využívanou
+Pythonovskou knihovnu <i>NumPy</i> (<a
+href="http://www.numpy.org/">http://www.numpy.org/</a>).</p>
+
+<p>Framework <i>Torch</i> je primárně určen pro zpracování vektorů, matic i
+tenzorů (tj.&nbsp;zobecnění vektorů), a to s&nbsp;využitím programovacího
+jazyka Lua namísto specializovaného jazyka (Julia, Matlab, R). Interně se
+prakticky všechny výpočty provádí v&nbsp;nativních céčkových knihovnách a
+popř.&nbsp;se využívá i CUDA, tj.&nbsp;možnosti grafických akcelerátorů.
+Možnosti frameworku <i>Torch</i> však ve skutečnosti přesahují
+&bdquo;pouhou&ldquo; práci s&nbsp;tenzory, protože obsahuje i moduly pro
+lineární algebru a především pro neuronové sítě, což je poměrně rozsáhlé téma,
+kterému se budeme věnovat v&nbsp;samostatném článku.</p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Instalace frameworku Torch</h2>
+
+<p>Před čtením dalšího textu je vhodné si framework <i>Torch</i> nainstalovat.
+Není to nic složitého, protože postačuje dodržet instrukce, které naleznete na
+stránce <a
+href="http://torch.ch/docs/getting-started.html">http://torch.ch/docs/getting-started.html</a>.
+Postačovat by mělo pouze těchto několik příkazů, které spustíte pod svým účtem
+(otestováno na Fedoře 26 a Linux Mintu, tedy na distribucích založených na
+odlišném systému balíčků):</p>
+
+<pre>
+git clone https://github.com/torch/distro.git ~/torch --recursive
+cd ~/torch
+bash install-deps
+./install.sh
+source ~/.bashrc
+</pre>
+
+<p>Ve skutečnosti může nastat několik problémů:</p>
+
+<ol>
+
+<li>Nezapomeňte na volbu <strong>--recursive</strong> u prvního příkazu. Torch
+totiž používá submoduly.</li>
+
+<li>Uživatel musí získat práva superuživatele pro instalaci doplňkových balíčků
+(kterých je poměrně velké množství).</li>
+
+<li>Skript <strong>install-deps</strong> nepočítá s&nbsp;některými novějšími
+verzemi distribucí. Snadnou úpravou je ale možné docílit instalace na Fedoru 26
+(změnou jedné podmínky) či novějším Linux Mintu.</li>
+
+</ol>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. První spuštění interaktivního prostředí</h2>
+
+<p>Po (doufejme) úspěšné instalaci si můžete vyzkoušet spustit interaktivní
+prostředí Torche. Je to snadné &ndash; postačuje spustit <strong>th</strong>
+(tento spustitelný soubor by se již měl nacházet na PATH):</p>
+
+<pre>
+$ <strong>th</strong>
+</pre>
+
+<pre>
+  ______             __   |  Torch7 
+ /_  __/__  ________/ /   |  Scientific computing for Lua. 
+  / / / _ \/ __/ __/ _ \  |  Type ? for help 
+ /_/  \___/_/  \__/_//_/  |  https://github.com/torch 
+                          |  http://torch.ch 
+</pre>
+
+<p>Alternativně lze přímo spustit skript uložený v&nbsp;externím souboru. Po
+dokončení skriptu se prostředí Torche ukončí:</p>
+
+<pre>
+$ <strong>th constructors.lua</strong>
+</pre>
+
+<p>Pokud budete chtít spustit nějaký skript a poté zůstat v&nbsp;interaktivním
+prostředí Torche, použijte tento příkaz:</p>
+
+<pre>
+$ <strong>th -i constructors.lua</strong>
+</pre>
+
+<p>Uživatelé textového editoru Vim mohou skripty postupně vytvářet ve svém
+oblíbeném vimovském prostředí a posléze je spouštět například klávesovou
+zkratkou <strong>F5</strong> s&nbsp;využitím následujícího mapování:</p>
+
+<pre>
+:map &lt;F5&gt; :!th %&lt;cr&gt;
+</pre>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Základní datová struktura, s&nbsp;níž se ve frameworku Torch pracuje</h2>
+
+<p>Ve frameworku <i>Torch</i> se základní datová struktura jmenuje
+<strong>Tensor</strong>. Tato struktura umožňuje reprezentovat skalární hodnoty
+(tenzory nultého řádu), běžné vektory (tenzory prvního řádu), běžné matice,
+&bdquo;3D matice&ldquo; atd. Interně je struktura objektů typu
+<strong>Tensor</strong> až překvapivě jednoduchá &ndash; základem je
+jednorozměrné pole doplněné o metadata, v&nbsp;nichž je uložen počet dimenzí,
+velikost dimenzí, hodnoty <i>stride</i> používané při přístupu k&nbsp;prvkům
+interního pole atd. Nad tenzory je navíc možné vytvářet různé pohledy
+(<i>views</i>), které mohou být určeny buď pouze pro čtení či pro čtení i zápis
+(pohled může například reprezentovat tenzor se změněným tvarem &ndash;
+<i>shape</i>). Samotné interní pole objektů typu <strong>Tensor</strong> je
+vždy homogenní, tj.&nbsp;může obsahovat pouze prvky stejného typu, ovšem tento
+typ je konfigurovatelný. Implicitně se jedná o hodnoty typu <i>double</i> (celý
+objekt má v&nbsp;takovém případě konkrétní typ <strong>DoubleTensor</strong>),
+ovšem existují i další typy, které je možné v&nbsp;případě potřeby zvolit
+(například při zpracování obrázků, audio dat atd.):</p>
+
+<table>
+<tr><th>Jméno typu</th><th>Význam</th></tr>
+<tr><td>ByteTensor</td><td>tenzor s&nbsp;prvky typu <i>unsigned char</i></td></tr>
+<tr><td>CharTensor</td><td>tenzor s&nbsp;prvky typu <i>char</i></td></tr>
+<tr><td>ShortTensor</td><td>tenzor s&nbsp;prvky typu <i>short</i> (16bitové celé číslo)</td></tr>
+<tr><td>IntTensor</td><td>tenzor s&nbsp;prvky typu <i>int</i> (32bitové celé číslo)</td></tr>
+<tr><td>LongTensor</td><td>tenzor s&nbsp;prvky typu <i>long</i> (64bitové celé číslo)</td></tr>
+<tr><td>FloatTensor</td><td>tenzor s&nbsp;prvky typu <i>float</i> (<a href="https://www.root.cz/clanky/interni-reprezentace-numerickych-hodnot-od-skutecneho-pocitacoveho-praveku-po-ieee-754-2008-dokonceni/#k04">32bitová FP hodnota</a>)</td></tr>
+<tr><td>DoubleTensor</td><td>tenzor s&nbsp;prvky typu <i>double</i> (<a href="https://www.root.cz/clanky/interni-reprezentace-numerickych-hodnot-od-skutecneho-pocitacoveho-praveku-po-ieee-754-2008-dokonceni/#k05">64bitová FP hodnota</a>)</td></tr>
+</table>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Základní konstruktory tenzorů</h2>
+
+<p>Již v&nbsp;úvodních kapitolách jsme si řekli, že základní datovou strukturou
+frameworku Torch jsou N-dimenzionální pole, která mohou být použita pro uložení
+komponent tenzorů. V&nbsp;této kapitole si ukážeme základní konstruktory
+objektů typu Tensor (prozatím se omezíme na komponenty tenzorů, které jsou typu
+<strong>Double</strong>).</p>
+
+<p>Vytvoření skaláru, neboli tenzoru nultého řádu a inicializace jeho (jediné)
+komponenty:</p>
+
+<pre>
+th&gt; <strong>s1=torch.Tensor(1)</strong>
+                                                                      [0.0002s]
+th&gt; <strong>s1[1]=42</strong>
+                                                                      [0.0001s]
+</pre>
+
+<p>Výsledek (povšimněte si typu &ndash; nejedná se o běžné číslo):</p>
+
+<pre>
+th&gt; <strong>s1</strong>
+ 42
+[torch.DoubleTensor of size 1]
+</pre>
+
+<p>Vytvoření vektoru, neboli tenzoru prvního řádu. V&nbsp;tomto konkrétním
+případě se jedná o tříprvkový vektor:</p>
+
+<pre>
+th&gt; <strong>v1 = torch.Tensor(3)</strong>
+                                                                      [0.0001s]
+</pre>
+
+<p>Inicializace komponent:</p>
+
+<pre>
+th&gt; <strong>v1[1]=10</strong>
+                                                                      [0.0001s]
+th&gt; <strong>v1[2]=20</strong>
+                                                                      [0.0001s]
+th&gt; <strong>v1[3]=40</strong>
+                                                                      [0.0001s]
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+th&gt; <strong>v1</strong>
+ 10
+ 20
+ 40
+[torch.DoubleTensor of size 3]
+                                                                      [0.0001s]
+</pre>
+
+<p>Alternativně lze vektor (tenzor prvního řádu) vytvořit a současně
+inicializovat jeho komponenty. Použije se přitom běžné pole tak, jak ho známe
+z&nbsp;programovacího jazyka Lua:</p>
+
+<pre>
+th&gt; <strong>v2=torch.Tensor({10,20,30})</strong>
+                                                                      [0.0001s]
+th&gt; <strong>v2</strong>
+ 10
+ 20
+ 30
+[torch.DoubleTensor of size 3]
+</pre>
+
+<p>Vytvoření tenzoru druhého řádu:</p>
+
+<pre>
+th&gt; m1 = <strong>torch.Tensor(3,3)</strong>
+</pre>
+
+<p>Vytvoření a inicializace tenzoru druhého řádu, který může být reprezentován
+maticí:</p>
+
+<pre>
+th&gt; <strong>m2=torch.Tensor({{1,2,3}, {4,5,6}, {7,8,9}})</strong>
+                                                                      [0.0002s]
+</pre>
+
+<p>Výsledek:</p>
+
+<pre>
+th&gt; <strong>m2</strong>
+ 1  2  3
+ 4  5  6
+ 7  8  9
+[torch.DoubleTensor of size 3x3]
+</pre>
+
+<p>A konečně tenzor třetího řádu reprezentovaný &bdquo;3D maticí&ldquo;:</p>
+
+<pre>
+th&gt; <strong>q = torch.Tensor({{{1,2,3}, {4,5,6}, {7,8,9}},</strong>
+       <strong>               {{9,8,7}, {6,5,4}, {3,2,1}}})</strong>
+</pre>
+
+<p>Výsledek se na 2D obrazovce zobrazí takto:</p>
+
+<pre>
+(1,.,.) = 
+  1  2  3
+  4  5  6
+  7  8  9
+&nbsp;
+(2,.,.) = 
+  9  8  7
+  6  5  4
+  3  2  1
+[torch.DoubleTensor of size 2x3x3]
+</pre>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Použití konstruktoru <strong>zeros</strong></h2>
+
+<p>V&nbsp;knihovně Torch existují i další konstruktory. V&nbsp;mnoha případech
+potřebujeme vytvořit vektor, matici atd. vyplněný nulami. V&nbsp;tomto případě
+můžeme použít metodu (nikoli konstruktor) <strong>zero()</strong>, která se
+ovšem aplikuje na již vytvořený objekt:</p>
+
+<pre>
+th&gt; <strong>x1 = torch.Tensor(10):zero()</strong>
+                                                                      [0.0002s]
+th&gt; <strong>x1</strong>
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+[torch.DoubleTensor of size 10]
+                                                                      [0.0002s]
+</pre>
+
+<p>Podobný postup lze použít i u 2D matice:</p>
+
+<pre>
+th&gt; <strong>x2 = torch.Tensor(4,4):zero()</strong>
+                                                                      [0.0001s]
+th&gt; <strong>x2</strong>
+ 0  0  0  0
+ 0  0  0  0
+ 0  0  0  0
+ 0  0  0  0
+[torch.DoubleTensor of size 4x4]
+</pre>
+
+<p>Výhodnější a rychlejší je však použití konstruktoru
+<strong>zeros()</strong>, kterému se předá n hodnot reprezentujících velikosti
+jednotlivých dimenzí. Opět se podívejme na příklady:</p>
+
+<p>Tenzor nultého řádu (skalár):</p>
+
+<pre>
+th&gt; <strong>z0 = torch.zeros(1)</strong>
+                                                                      [0.0003s]
+th&gt; <strong>print(z0)</strong>
+ 0
+[torch.DoubleTensor of size 1]
+                                                                      [0.0003s]
+</pre>
+
+<p>Tenzor prvního řádu (vektor):</p>
+
+<pre>
+th&gt; <strong>z1 = torch.zeros(10)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>print(z1)</strong>
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+ 0
+[torch.DoubleTensor of size 10]
+                                                                      [0.0002s]
+</pre>
+
+<p>Tenzor druhého řádu:</p>
+
+<pre>
+th&gt; <strong>z2 = torch.zeros(3,4)</strong>
+                                                                      [0.0000s]
+th&gt; <strong>print(z2)</strong>
+ 0  0  0  0
+ 0  0  0  0
+ 0  0  0  0
+[torch.DoubleTensor of size 3x4]
+</pre>
+
+<p>Tenzor třetího řádu:</p>
+
+<pre>
+th&gt; <strong>z3 = torch.zeros(2,3,4)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>z3</strong>
+(1,.,.) = 
+  0  0  0  0
+  0  0  0  0
+  0  0  0  0
+&nbsp;
+(2,.,.) = 
+  0  0  0  0
+  0  0  0  0
+  0  0  0  0
+[torch.DoubleTensor of size 2x3x4]
+</pre>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Použití konstruktoru <strong>ones</strong></h2>
+
+<p>Způsob reprezentace tenzorů druhého řádu sice připomíná matice, ovšem zde se
+nesmíme nechat zmýlit &ndash; další konstruktor se sice jmenuje
+<strong>ones</strong>, ale nevytváří (v&nbsp;2D případě) jednotkovou matici
+s&nbsp;jedničkami pouze na hlavní diagonále, nýbrž matici, v&nbsp;níž mají
+všechny prvky hodnotu 1. V&nbsp;ostatních ohledech se konstruktor
+<strong>ones</strong> podobá výše popsanému konstruktoru
+<strong>zeros</strong>, takže jen velmi krátce:</p>
+
+<p>Skalár s&nbsp;hodnotou 1:</p>
+
+<pre>
+th&gt; <strong>o0 = torch.ones(1)</strong>
+                                                                      [0.0003s]
+th&gt; <strong>print(o0)</strong>
+ 1
+[torch.DoubleTensor of size 1]
+                                                                      [0.0003s]
+</pre>
+
+<p>Tenzor prvního řádu (zde vektor o deseti prvcích):</p>
+
+<pre>
+th&gt; <strong>o1 = torch.ones(10)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>print(o1)</strong>
+ 1
+ 1
+ 1
+ 1
+ 1
+ 1
+ 1
+ 1
+ 1
+ 1
+[torch.DoubleTensor of size 10]
+</pre>
+
+<p>Tenzor druhého řádu:</p>
+
+<pre>
+th&gt; <strong>o2 = torch.ones(3,4)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>print(o2)</strong>
+ 1  1  1  1
+ 1  1  1  1
+ 1  1  1  1
+[torch.DoubleTensor of size 3x4]
+                                                                      [0.0003s]
+</pre>
+
+<p>Tenzor třetího řádu:</p>
+
+<pre>
+th&gt; <strong>o3 = torch.ones(2,3,4)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>print(o3)</strong>
+(1,.,.) = 
+  1  1  1  1
+  1  1  1  1
+  1  1  1  1
+&nbsp;
+(2,.,.) = 
+  1  1  1  1
+  1  1  1  1
+  1  1  1  1
+[torch.DoubleTensor of size 2x3x4]
+</pre>
+
+
+
+<p><a name="08"></a></p>
+<h2 id="k08">8. Použití konstruktoru <strong>range</strong></h2>
+
+<p>Další typ konstruktoru je možné použít pro vytvoření vektoru obsahujícího
+aritmetickou řadu s&nbsp;volitelným krokem. Tento konstruktor se jmenuje
+<strong>range</strong> a lze mu předat hodnotu prvního a posledního prvku
+popř.&nbsp;i krok mezi hodnotami sousedních prvků. Krok může být kladný i
+záporný a samozřejmě se <i>nemusí</i> jednat o celé číslo. Podle očekávání je
+implicitní hodnota kroku rovna jedné. Knihovna <i>Torch</i> kontroluje
+nenulovost kroku a taktéž to, zda se skutečně vytvoří korektní aritmetická
+řada. Opět se podívejme na několik jednoduchých příkladů:</p>
+
+<p>Použití implicitního kroku jedna (hodnota prvního a posledního prvku je
+reprezentována celými čísly, není to však nutnost):</p>
+
+<pre>
+th&gt; <strong>r1 = torch.range(1, 10)</strong>
+                                                                      [0.0002s]
+th&gt; <strong>print(r1)</strong>
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+[torch.DoubleTensor of size 10]
+                                                                      [0.0003s]
+</pre>
+
+<p>Explicitní specifikace kroku (opět pro jednoduchost používáme celá
+čísla):</p>
+
+<pre>
+th&gt; <strong>r2 = torch.range(1, 10, 2)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>print(r2)</strong>
+ 1
+ 3
+ 5
+ 7
+ 9
+[torch.DoubleTensor of size 5]
+                                                                      [0.0001s]
+</pre>
+
+<p>Můžeme zadat i záporný krok:</p>
+
+<pre>
+th&gt; <strong>r3 = torch.range(10, 0, -2)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>print(r3)</strong>
+ 10
+  8
+  6
+  4
+  2
+  0
+[torch.DoubleTensor of size 6]
+                                                                      [0.0001s]
+</pre>
+
+<p>Knihovna <i>Torch</i> samozřejmě hlídá, aby nebyl použit krok
+s&nbsp;hodnotou nula. Toto chování si můžeme snadno ověřit:</p>
+
+<pre>
+th&gt; <strong>r4 = torch.range(10, 0, 0)</strong>
+bad argument #3 to '?' (step must be a non-null number at /home/tester/torch/pkg/torch/lib/TH/generic/THTensorMath.c:2003)
+stack traceback:
+        [C]: at 0x7f3ff7194840
+        [C]: in function 'range'
+        [string "r4 = torch.range(10, 0, 0)"]:1: in main chunk
+        [C]: in function 'xpcall'
+        /home/tester/torch/install/share/lua/5.1/trepl/init.lua:679: in function 'repl'
+        ...novs/torch/install/lib/luarocks/rocks/trepl/scm-1/bin/th:204: in main chunk
+        [C]: at 0x00405780
+</pre>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Způsob uložení tenzorů v&nbsp;paměti počítače</h2>
+
+<p><a href="#k04">Ve čtvrté kapitole</a> jsme si řekli, že objekty typu
+<strong>Tensor</strong> pro uložení svých komponent (prvků) interně používají
+jednorozměrná pole. To, že se tenzory uživateli jeví jako 1D, 2D, 3D atd.
+struktury je záležitostí pohledů (<i>views</i>) na zmíněná jednorozměrná pole
+(jedná se vlastně o běžná céčková pole). Pro některé nízkoúrovňové operace může
+být výhodné přistupovat přímo k&nbsp;internímu poli, což nám knihovna
+<i>Torch</i> umožňuje, protože nabízí objekty typu <a
+href="https://github.com/torch/torch7/blob/master/doc/storage.md">Storage</a>.
+Existuje několik konkrétních typů Storage, protože interní (céčková) pole
+taktéž mohou obsahovat prvky různých typů. Implicitně se používá
+<strong>DoubleStorage</strong>:</p>
+
+<table>
+<tr><th>Typ Storage</th><th>Význam</th></tr>
+<tr><td>ByteStorage</td><td>pole s&nbsp;prvky typu <i>unsigned char</i></td></tr>
+<tr><td>CharStorage</td><td>pole s&nbsp;prvky typu <i>char</i></td></tr>
+<tr><td>ShortStorage</td><td>pole s&nbsp;prvky typu <i>short</i> (16bitové celé číslo)</td></tr>
+<tr><td>IntStorage</td><td>pole s&nbsp;prvky typu <i>int</i> (32bitové celé číslo)</td></tr>
+<tr><td>LongStorage</td><td>pole s&nbsp;prvky typu <i>long</i> (64bitové celé číslo)</td></tr>
+<tr><td>FloatStorage</td><td>pole s&nbsp;prvky typu <i>float</i> (<a href="https://www.root.cz/clanky/interni-reprezentace-numerickych-hodnot-od-skutecneho-pocitacoveho-praveku-po-ieee-754-2008-dokonceni/#k04">32bitová FP hodnota</a>)</td></tr>
+<tr><td>DoubleStorage</td><td>pole s&nbsp;prvky typu <i>double</i> (<a href="https://www.root.cz/clanky/interni-reprezentace-numerickych-hodnot-od-skutecneho-pocitacoveho-praveku-po-ieee-754-2008-dokonceni/#k05">64bitová FP hodnota</a>)</td></tr>
+</table>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Manipulace s&nbsp;objektem typu <strong>Storage</strong></h2>
+
+<p>Ukažme si nyní, jak je možné pro existující tenzor získat objekt typu
+<strong>Storage</strong> a jak se dá tento objekt využít pro změnu hodnot
+komponent tenzoru. Nejprve vytvoříme běžný vektor s&nbsp;deseti prvky:</p>
+
+<pre>
+th&gt; <strong>vector=torch.Tensor(10)</strong>
+                                                                      [0.0001s]
+</pre>
+
+<p>Následně pro tento vektor získáme objekt typu <strong>Storage</strong>.
+Povšimněte si, že se při volání metody objektu používá dvojtečka a nikoli
+tečka! Jedná se o vlastnost programovacího jazyka Lua, díky níž nemusíme
+explicitně specifikovat parametr <strong>this</strong>:</p>
+
+<pre>
+th&gt; <strong>storage=vector:storage()</strong>
+                                                                      [0.0001s]
+</pre>
+
+<p>Objekt typu <strong>Storage</strong> se chová podobně jako běžné pole jazyka
+Lua. Musíme si jen dát pozor na to, že se prvky indexují od jedničky a nikoli
+od nuly (ovšem to je v&nbsp;matematice běžné). V&nbsp;následující smyčce do
+interního pole prvků typu double vložíme hodnoty 1/1, 1/2, 1/3 až 1/10:</p>
+
+<pre>
+th&gt; <strong>for i=1,storage:size() do</strong>
+..&gt;     <strong>storage[i] = 1.0/i</strong>
+..&gt; <strong>end</strong>
+</pre>
+
+<p>Pro jistotu se můžeme na prvky v&nbsp;poli podívat. Povšimněte si zejména
+typu vypsaného na předposledním řádku):</p>
+
+<pre>
+th&gt; <strong>storage</strong>
+ 1.0000
+ 0.5000
+ 0.3333
+ 0.2500
+ 0.2000
+ 0.1667
+ 0.1429
+ 0.1250
+ 0.1111
+ 0.1000
+<i>[torch.DoubleStorage of size 10]</i>
+                                                                      [0.0002s]
+</pre>
+
+<p>Přes objekt typu <strong>Storage</strong> se ovšem změnil i vlastní vektor
+(tedy &bdquo;pohled&ldquo; na Storage), o čemž se opět můžeme snadno
+přesvědčit:</p>
+
+<pre>
+th&gt; <strong>vector</strong>
+ 1.0000
+ 0.5000
+ 0.3333
+ 0.2500
+ 0.2000
+ 0.1667
+ 0.1429
+ 0.1250
+ 0.1111
+ 0.1000
+<i>[torch.DoubleTensor of size 10]</i>
+                                                                      [0.0002s]
+</pre>
+
+<p>Podobně můžeme postupovat při naplnění složitější struktury
+s&nbsp;2&times;3&times;4 prvky:</p>
+
+<pre>
+th&gt; <strong>t=torch.Tensor(2,3,4)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>s=t:storage()</strong>
+                                                                      [0.0001s]
+th&gt; <strong>s:size()</strong>
+24
+</pre>
+
+<p>Vidíme, že se interně vytvořilo jednorozměrné pole s&nbsp;24 prvky, které
+můžeme naplnit:</p>
+
+<pre>
+th&gt; <strong>for i=1,s:size() do</strong>
+..&gt;     <strong>s[i] = i</strong>
+..&gt; <strong>end</strong>
+</pre>
+
+<p>Současně se změnil i samotný tenzor:</p>
+
+<pre>
+th&gt; <strong>t</strong>
+(1,.,.) = 
+   1   2   3   4
+   5   6   7   8
+   9  10  11  12
+&nbsp;
+(2,.,.) = 
+  13  14  15  16
+  17  18  19  20
+  21  22  23  24
+[torch.DoubleTensor of size 2x3x4]
+</pre>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Operace <strong>sub</strong> aplikovaná na vektory</h2>
+
+<p>Další zajímavou operací, která produkuje pohled (view) nad tenzorem, je
+operace nazvaná <strong>sub</strong>. Nejprve se podíváme na nejjednodušší
+použití této operace při práci s&nbsp;vektory. Vytvoříme si vektor
+s&nbsp;deseti prvky od 1/1 do 1/10:</p>
+
+<pre>
+th&gt; <strong>vector=torch.Tensor(10)</strong>
+th&gt; <strong>storage=vector:storage()</strong>
+th&gt; <strong>for i=1,storage:size() do</strong>
+..&gt;     <strong>storage[i] = 1.0/i</strong>
+..&gt; <strong>end</strong>
+</pre>
+
+<p>Vektor skutečně obsahuje deset prvků:</p>
+
+<pre>
+th&gt; <strong>vector</strong>
+ 1.0000
+ 0.5000
+ 0.3333
+ 0.2500
+ 0.2000
+ 0.1667
+ 0.1429
+ 0.1250
+ 0.1111
+ 0.1000
+[torch.DoubleTensor of size 10]
+</pre>
+
+<p>Pomocí operace <strong>sub</strong> můžeme získat pohled na prvky ležícími
+mezi specifikovaným dolním a horním indexem. Druhý až osmý prvek se tedy přečte
+takto:</p>
+
+<pre>
+th&gt; <strong>vector:sub(2,9)</strong>
+ 0.5000
+ 0.3333
+ 0.2500
+ 0.2000
+ 0.1667
+ 0.1429
+ 0.1250
+ 0.1111
+[torch.DoubleTensor of size 8]
+</pre>
+
+<p>Povšimněte si, že výsledkem operace <strong>sub</strong> je opět
+plnohodnotný tenzor.</p>
+
+<p>Při zadávání indexů prvků je možné použít i záporné hodnoty. Jak je zvykem,
+jsou tyto hodnoty chápány jako indexy od konce vektoru. Další příklad nám tedy
+dá stejný výsledek, jako příklad předchozí (druhý prvek od začátku až druhý
+prvek od konce; povšimněte si, proč je konzistentní pracovat s&nbsp;indexy
+začínajícími od 1 a nikoli od 0):</p>
+
+<pre>
+th&gt; <strong>vector:sub(2,-2)</strong>
+ 0.5000
+ 0.3333
+ 0.2500
+ 0.2000
+ 0.1667
+ 0.1429
+ 0.1250
+ 0.1111
+[torch.DoubleTensor of size 8]
+</pre>
+
+<p>Můžeme samozřejmě vybrat i jediný prvek:</p>
+
+<pre>
+th&gt; <strong>vector:sub(10,10)</strong>
+ 0.1000
+[torch.DoubleTensor of size 1]
+</pre>
+
+<p>Totožný výsledek s&nbsp;použitím záporných indexů:</p>
+
+<pre>
+th&gt; <strong>vector:sub(-1,-1)</strong>
+ 0.1000
+[torch.DoubleTensor of size 1]
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Operace <strong>sub</strong> aplikovaná na matice a tenzory vyšších řádů</h2>
+
+<p>Operaci <strong>sub</strong> je samozřejmě možné aplikovat i na matice a
+tenzory vyšších řádů; výsledkem je vždy opět tenzor. Nejprve si pro ukázku
+vytvoříme 2D matici a naplníme ji prvky s&nbsp;hodnotami 1 až 20:</p>
+
+<pre>
+th&gt; <strong>x=torch.Tensor(4,5)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>s=x:storage()</strong>
+                                                                      [0.0001s]
+th&gt; <strong>for i=1,s:size() do</strong>
+..&gt;     <strong>s[i] = i</strong>
+..&gt; <strong>end</strong>
+</pre>
+
+<p>Matice se skutečně vytvořila:</p>
+
+<pre>
+th&gt; <strong>x</strong>
+  1   2   3   4   5
+  6   7   8   9  10
+ 11  12  13  14  15
+ 16  17  18  19  20
+[torch.DoubleTensor of size 4x5]
+</pre>
+
+<p>Voláním <strong>x:sub(1,4)</strong> získáme pohled obsahující řádky 1 až 4
+(včetně), tedy celou původní matici:</p>
+
+<pre>
+th&gt; <strong>x:sub(1,4)</strong>
+  1   2   3   4   5
+  6   7   8   9  10
+ 11  12  13  14  15
+ 16  17  18  19  20
+[torch.DoubleTensor of size 4x5]
+</pre>
+
+<p>Pohled můžeme snadno omezit na první tři řádky:</p>
+
+<pre>
+th&gt; <strong>x:sub(1,3)</strong>
+  1   2   3   4   5
+  6   7   8   9  10
+ 11  12  13  14  15
+[torch.DoubleTensor of size 3x5]
+</pre>
+
+<p>Popř.&nbsp;na řádek druhý a třetí:</p>
+
+<pre>
+th&gt; <strong>x:sub(2,3)</strong>
+  6   7   8   9  10
+ 11  12  13  14  15
+[torch.DoubleTensor of size 2x5]
+</pre>
+
+<p>I u operace <strong>sub</strong> je možné používat záporné indexy.
+Následující příkaz vrátí předposlední a poslední řádek původní matice:</p>
+
+<pre>
+th&gt; <strong>x:sub(-2,-1)</strong>
+ 11  12  13  14  15
+ 16  17  18  19  20
+</pre>
+
+<p>To ovšem není zdaleka vše, protože je možné specifikovat indexy i ve druhé
+dimenzi. Následující příkaz tedy získá submatici 2&times;2 prvky:</p>
+
+<pre>
+th&gt; <strong>x:sub(2,3,2,3)</strong>
+  7   8
+ 12  13
+[torch.DoubleTensor of size 2x2]
+</pre>
+
+<p>Další příkaz vrátí submatici 2&times;2 prvků, která leží v&nbsp;pravém
+dolním rohu původní matice:</p>
+
+<pre>
+th&gt; <strong>x:sub(-2,-1,-2,-1)</strong>
+ 14  15
+ 19  20
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Operace <strong>narrow</strong> aplikovaná na vektory</h2>
+
+<p>S&nbsp;operací <strong>sub</strong> do značné míry souvisí i operace
+<strong>narrow</strong>, která taktéž získá pohled na zvolený tenzor. Této
+operaci se předávají tři parametry: dimenze (resp.&nbsp;její index), první
+prvek v&nbsp;dané dimenzi a počet prvků. Podívejme se opět na ten nejjednodušší
+případ, tedy na získání pohledu do jednorozměrného vektoru. Ten má jen jednu
+dimenzi (=1) a budeme chtít získat čtyři prvky začínající druhým prvkem:</p>
+
+<pre>
+th&gt; <strong>vector:narrow(1,2,4)</strong>
+ 0.5000
+ 0.3333
+ 0.2500
+ 0.2000
+[torch.DoubleTensor of size 4]
+</pre>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Operace <strong>narrow</strong> aplikovaná na matice a tenzory vyšších řádů</h2>
+
+<p>Mnohem užitečnější je použití operace <strong>narrow</strong> na matice a
+tenzory vyšších řádů. Vraťme se k&nbsp;naší matici 4&times;5 prvků:</p>
+
+<pre>
+th&gt; <strong>x</strong>
+  1   2   3   4   5
+  6   7   8   9  10
+ 11  12  13  14  15
+ 16  17  18  19  20
+[torch.DoubleTensor of size 4x5]
+                                                                      [0.0003s]
+</pre>
+
+<p>Další příkaz získá první dva řádky matice (pohybujeme se tedy po řádcích,
+neboť jsme zvolili první dimenzi):</p>
+
+<pre>
+th&gt; <strong>x:narrow(1,1,2)</strong>
+  1   2   3   4   5
+  6   7   8   9  10
+[torch.DoubleTensor of size 2x5]
+                                                                      [0.0004s]
+</pre>
+
+<p>Můžeme ovšem získat i první dva sloupce, tj.&nbsp;pohybovat se po dimenzi
+druhé:</p>
+
+<pre>
+th&gt; <strong>x:narrow(2,1,2)</strong>
+  1   2
+  6   7
+ 11  12
+ 16  17
+[torch.DoubleTensor of size 4x2]
+</pre>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Operace <strong>sub</strong> a <strong>narrow</strong> ve funkci zapisovatelných pohledů</h2>
+
+<p>Vzhledem k&nbsp;tomu, že pohled na tenzory může být použit i pro zápis,
+můžeme s&nbsp;operacemi <strong>sub</strong> a <strong>narrow</strong> provádět
+i poměrně složité operace, a to opět bez nutnosti explicitně zapisovat
+programové smyčky při přístupu k&nbsp;prvkům tenzoru.</p>
+
+<p>Zkusme si například vytvořit matici 5&times;5 prvků, která bude ve svém
+středu obsahovat submatici 3&times;3 prvky naplněné jedničkami (zbylé prvky
+budou nulové). Pro výplň tenzoru (či pohledu na něj) nějakou hodnotou se
+používá metoda <strong>fill(hodnota)</strong>:</p>
+
+<pre>
+th&gt; <strong>x=torch.zeros(5,5)</strong>
+                                                                      [0.0002s]
+th&gt; <strong>x</strong>
+ 0  0  0  0  0
+ 0  0  0  0  0
+ 0  0  0  0  0
+ 0  0  0  0  0
+ 0  0  0  0  0
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>Matici máme vytvořenou, takže získáme submatici 3&times;3 prvky a vyplníme
+ji jedničkami (povšimněte si, že se tato submatice vrátí jako výsledek, ten
+ovšem zahodíme):</p>
+
+<pre>
+th&gt; <strong>x:sub(2,4,2,4):fill(1)</strong>
+ 1  1  1
+ 1  1  1
+ 1  1  1
+[torch.DoubleTensor of size 3x3]
+                                                                      [0.0003s]
+</pre>
+
+<p>Současně se změnila i původní matice:</p>
+
+<pre>
+th&gt; <strong>x</strong>
+ 0  0  0  0  0
+ 0  1  1  1  0
+ 0  1  1  1  0
+ 0  1  1  1  0
+ 0  0  0  0  0
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>Nyní si zkusme naplnění prostředního řádku nové nulové matice devítkami:</p>
+
+<pre>
+th&gt; <strong>x=torch.zeros(5,5)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>x</strong>
+ 0  0  0  0  0
+ 0  0  0  0  0
+ 0  0  0  0  0
+ 0  0  0  0  0
+ 0  0  0  0  0
+[torch.DoubleTensor of size 5x5]
+                                                                      [0.0003s]
+</pre>
+
+<p>Volání <strong>narrow(1,3,1)</strong> nám vrátí celý třetí řádek matice:</p>
+
+<pre>
+th&gt; <strong>x:narrow(1,3,1):fill(9)</strong>
+ 9  9  9  9  9
+[torch.DoubleTensor of size 1x5]
+
+                                                                      [0.0002s]
+th&gt; <strong>x</strong>
+ 0  0  0  0  0
+ 0  0  0  0  0
+ 9  9  9  9  9
+ 0  0  0  0  0
+ 0  0  0  0  0
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>Doplnění trojek do posledního sloupce (dimenze=2):</p>
+
+<pre>
+th&gt; <strong>x:narrow(2,5,1):fill(3)</strong>
+ 3
+ 3
+ 3
+ 3
+ 3
+[torch.DoubleTensor of size 5x1]
+
+                                                                      [0.0004s]
+th&gt; <strong>x</strong>
+ 0  0  0  0  3
+ 0  0  0  0  3
+ 9  9  9  9  3
+ 0  0  0  0  3
+ 0  0  0  0  3
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>Pohledy je možné získávat i pro již existující pohledy, takže:</p>
+
+<pre>
+th&gt; <strong>x=torch.zeros(7,7)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>x:narrow(1,3,4):narrow(2,2,2):fill(1)</strong>
+ 1  1
+ 1  1
+ 1  1
+ 1  1
+[torch.DoubleTensor of size 4x2]
+                                                                      [0.0001s]
+
+th&gt; <strong>x</strong>
+ 0  0  0  0  0  0  0
+ 0  0  0  0  0  0  0
+ 0  1  1  0  0  0  0
+ 0  1  1  0  0  0  0
+ 0  1  1  0  0  0  0
+ 0  1  1  0  0  0  0
+ 0  0  0  0  0  0  0
+[torch.DoubleTensor of size 7x7]
+                                                                      [0.0002s]
+</pre>
+
+<p>Další komplikovanější operace s&nbsp;tenzory, například získání řezu, změny
+tvaru atd., si popíšeme příště.</p>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Všechny demonstrační příklady, které jsme si popsali v&nbsp;předchozích
+kapitolách, najdete v&nbsp;GIT repositáři dostupném na adrese <a
+href="https://github.com/tisnik/torch-examples.git">https://github.com/tisnik/torch-examples.git</a>.
+Následují odkazy na zdrojové kódy jednotlivých příkladů:</p>
+
+<table>
+<tr><th>Příklad</th><th>Odkaz</th></tr>
+<tr><td>01_basic_constructors.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/01_basic_constructors.lua ">https://github.com/tisnik/torch-examples/blob/master/basics/01_basic_constructors.lua</a></td></tr>
+<tr><td>02_zeros_constructor.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/02_zeros_constructor.lua">https://github.com/tisnik/torch-examples/blob/master/basics/02_zeros_constructor.lua</a></td></tr>
+<tr><td>03_ones_constructor.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/03_ones_constructor.lua ">https://github.com/tisnik/torch-examples/blob/master/basics/03_ones_constructor.lua</a></td></tr>
+<tr><td>04_range_constructor.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/04_range_constructor.lua">https://github.com/tisnik/torch-examples/blob/master/basics/04_range_constructor.lua</a></td></tr>
+<tr><td>05_storage.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/05_storage.lua">https://github.com/tisnik/torch-examples/blob/master/basics/05_storage.lua</a></td></tr>
+<tr><td>06_storage_t2.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/06_storage_t2.lua ">https://github.com/tisnik/torch-examples/blob/master/basics/06_storage_t2.lua</a></td></tr>
+<tr><td>07_operation_sub.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/07_operation_sub.lua">https://github.com/tisnik/torch-examples/blob/master/basics/07_operation_sub.lua</a></td></tr>
+<tr><td>08_operation_sub.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/08_operation_sub.lua">https://github.com/tisnik/torch-examples/blob/master/basics/08_operation_sub.lua</a></td></tr>
+<tr><td>09_slice.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/09_slice.lua">https://github.com/tisnik/torch-examples/blob/master/basics/09_slice.lua</a></td></tr>
+<tr><td>10_operation_narrow.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/10_operation_narrow.lua ">https://github.com/tisnik/torch-examples/blob/master/basics/10_operation_narrow.lua</a></td></tr>
+<tr><td>11_operation_narrow_t2.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/11_operation_narrow_t2.lua">https://github.com/tisnik/torch-examples/blob/master/basics/11_operation_narrow_t2.lua</a></td></tr>
+<tr><td>12_filling.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/12_filling.lua">https://github.com/tisnik/torch-examples/blob/master/basics/12_filling.lua</a></td></tr>
+</table>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>Stránka projektu Torch<br />
+<a href="http://torch.ch/">http://torch.ch/</a>
+</li>
+
+<li>Torch na GitHubu (několik repositářů)<br />
+<a href="https://github.com/torch">https://github.com/torch</a>
+</li>
+
+<li>Torch (machine learning), Wikipedia<br />
+<a href="https://en.wikipedia.org/wiki/Torch_%28machine_learning%29">https://en.wikipedia.org/wiki/Torch_%28machine_learning%29</a>
+</li>
+
+<li>Torch Package Reference Manual<br />
+<a href="https://github.com/torch/torch7/blob/master/README.md">https://github.com/torch/torch7/blob/master/README.md</a>
+</li>
+
+<li>Torch Cheatsheet<br />
+<a href="https://github.com/torch/torch7/wiki/Cheatsheet">https://github.com/torch/torch7/wiki/Cheatsheet</a>
+</li>
+
+<li>An Introduction to Tensors<br />
+<a href="https://math.stackexchange.com/questions/10282/an-introduction-to-tensors">https://math.stackexchange.com/questions/10282/an-introduction-to-tensors</a>
+</li>
+
+<li>Differences between a matrix and a tensor<br />
+<a href="https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor">https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor</a>
+</li>
+
+<li>Qualitatively, what is the difference between a matrix and a tensor?<br />
+<a href="https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?">https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?</a>
+</li>
+
+<li>BLAS (Basic Linear Algebra Subprograms)<br />
+<a href="http://www.netlib.org/blas/">http://www.netlib.org/blas/</a>
+</li>
+
+<li>Basic Linear Algebra Subprograms (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms">https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms</a>
+</li>
+
+<li>Comparison of deep learning software<br />
+<a href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software</a>
+</li>
+
+<li>TensorFlow<br />
+<a href="https://www.tensorflow.org/">https://www.tensorflow.org/</a>
+</li>
+
+<li>Caffe2 (A New Lightweight, Modular, and Scalable Deep Learning Framework)<br />
+<a href="https://caffe2.ai/">https://caffe2.ai/</a>
+</li>
+
+<li>PyTorch<br />
+<a href="http://pytorch.org/">http://pytorch.org/</a>
+</li>
+
+<li>Seriál o programovacím jazyku Lua<br />
+<a href="http://www.root.cz/serialy/programovaci-jazyk-lua/">http://www.root.cz/serialy/programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (2)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (3)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (4)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (5 - tabulky a pole)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (6 - překlad programových smyček do mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (7 - dokončení popisu mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (8 - základní vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (9 - další vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (10 - JIT překlad do nativního kódu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (11 - JIT překlad do nativního kódu procesorů s architekturami x86 a ARM)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (12 - překlad operací s reálnými čísly)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/</a>
+</li>
+
+<li>Lua Profiler (GitHub)<br />
+<a href="https://github.com/luaforge/luaprofiler">https://github.com/luaforge/luaprofiler</a>
+</li>
+
+<li>Lua Profiler (LuaForge)<br />
+<a href="http://luaforge.net/projects/luaprofiler/">http://luaforge.net/projects/luaprofiler/</a>
+</li>
+
+<li>ctrace<br />
+<a href="http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</li>
+
+<li>The Lua VM, on the Web<br />
+<a href="https://kripken.github.io/lua.vm.js/lua.vm.js.html">https://kripken.github.io/lua.vm.js/lua.vm.js.html</a>
+</li>
+
+<li>Lua.vm.js REPL<br />
+<a href="https://kripken.github.io/lua.vm.js/repl.html">https://kripken.github.io/lua.vm.js/repl.html</a>
+</li>
+
+<li>lua2js<br />
+<a href="https://www.npmjs.com/package/lua2js">https://www.npmjs.com/package/lua2js</a>
+</li>
+
+<li>lua2js na GitHubu<br />
+<a href="https://github.com/basicer/lua2js-dist">https://github.com/basicer/lua2js-dist</a>
+</li>
+
+<li>Lua (programming language)<br />
+<a href="http://en.wikipedia.org/wiki/Lua_(programming_language)">http://en.wikipedia.org/wiki/Lua_(programming_language)</a>
+</li>
+
+<li>LuaJIT 2.0 SSA IR
+<a href="http://wiki.luajit.org/SSA-IR-2.0">http://wiki.luajit.org/SSA-IR-2.0</a>
+</li>
+
+<li>The LuaJIT Project<br />
+<a href="http://luajit.org/index.html">http://luajit.org/index.html</a>
+</li>
+
+<li>LuaJIT FAQ<br />
+<a href="http://luajit.org/faq.html">http://luajit.org/faq.html</a>
+</li>
+
+<li>LuaJIT Performance Comparison<br />
+<a href="http://luajit.org/performance.html">http://luajit.org/performance.html</a>
+</li>
+
+<li>LuaJIT 2.0 intellectual property disclosure and research opportunities<br />
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908">http://article.gmane.org/gmane.comp.lang.lua.general/58908</a>
+</li>
+
+<li>LuaJIT Wiki<br />
+<a href="http://wiki.luajit.org/Home">http://wiki.luajit.org/Home</a>
+</li>
+
+<li>LuaJIT 2.0 Bytecode Instructions<br />
+<a href="http://wiki.luajit.org/Bytecode-2.0">http://wiki.luajit.org/Bytecode-2.0</a>
+</li>
+
+<li>Programming in Lua (first edition)<br />
+<a href="http://www.lua.org/pil/contents.html">http://www.lua.org/pil/contents.html</a>
+</li>
+
+<li>Lua 5.2 sources<br />
+<a href="http://www.lua.org/source/5.2/">http://www.lua.org/source/5.2/</a>
+</li>
+
+<li>REPL<br />
+<a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop</a>
+</li>
+
+<li>The LLVM Compiler Infrastructure<br />
+<a href="http://llvm.org/ProjectsWithLLVM/">http://llvm.org/ProjectsWithLLVM/</a>
+</li>
+
+<li>clang: a C language family frontend for LLVM<br />
+<a href="http://clang.llvm.org/">http://clang.llvm.org/</a>
+</li>
+
+<li>LLVM Backend ("Fastcomp")<br />
+<a href="http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend">http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend</a>
+</li>
+
+<li>Lambda the Ultimate: Coroutines in Lua,<br />
+<a href="http://lambda-the-ultimate.org/node/438">http://lambda-the-ultimate.org/node/438</a>
+</li>
+
+<li>Coroutines Tutorial,<br />
+<a href="http://lua-users.org/wiki/CoroutinesTutorial">http://lua-users.org/wiki/CoroutinesTutorial</a>
+</li>
+
+<li>Lua Coroutines Versus Python Generators,<br />
+<a href="http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators">http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2017</small></p>
+</body>
+</html>
+

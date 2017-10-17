@@ -18,5 +18,7 @@ print(x[5])
 
 print(x:isContiguous())
 print(x:select(1,1):isContiguous())
+print(x:select(1,5):isContiguous())
 print(x:select(2,1):isContiguous())
+print(x:select(2,5):isContiguous())
 print(x[1]:isContiguous())

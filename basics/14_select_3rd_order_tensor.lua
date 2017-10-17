@@ -22,5 +22,6 @@ print(t[4])
 
 print(t:isContiguous())
 print(t:select(1,1):isContiguous())
+print(t:select(1,4):isContiguous())
 print(t:select(2,1):isContiguous())
 print(t:select(3,1):isContiguous())

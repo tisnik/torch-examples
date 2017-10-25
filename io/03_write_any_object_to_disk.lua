@@ -11,31 +11,35 @@
 --
 
 function writeObject(filename, object)
-    fout = torch.DiskFile(filename, "w")
+    local fout = torch.DiskFile(filename .. ".asc", "w"):ascii()
+    fout:writeObject(object)
+    fout:close()
+
+    local fout = torch.DiskFile(filename .. ".bin", "w"):binary()
     fout:writeObject(object)
     fout:close()
 end
 
-writeObject("nil.asc", nil)
-writeObject("true.asc", true)
-writeObject("false.asc", false)
+writeObject("nil", nil)
+writeObject("true", true)
+writeObject("false", false)
 
 answer = 42
-writeObject("answer.asc", answer)
+writeObject("answer", answer)
 
-writeObject("pi.asc", math.pi)
+writeObject("pi", math.pi)
 
 greeting = "Hello world!"
-writeObject("greeting.asc", greeting)
+writeObject("greeting", greeting)
 
 empty_array = {}
-writeObject("empty_array.asc", empty_array)
+writeObject("empty_array", empty_array)
 
 array = {1,2,3}
-writeObject("array.asc", array)
+writeObject("array", array)
 
 array2 = {"xx", "yy", "zz"}
-writeObject("array2.asc", array2)
+writeObject("array2", array2)
 
 dict = {x=1, y=2, z=3}
-writeObject("dict.asc", dict)
+writeObject("dict", dict)

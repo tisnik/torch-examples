@@ -12,7 +12,7 @@
 
 require("gnuplot")
 
-x = torch.range(1, 360, 5)
+x = torch.range(0, 360, 5)
 y = torch.sin(x/180.0*math.pi)
 
 gnuplot.pngfigure("plot3.png")
@@ -21,3 +21,4 @@ gnuplot.xlabel("x")
 gnuplot.ylabel("sin x")
 gnuplot.plot(x, y)
 gnuplot.plotflush()
+gnuplot.close()

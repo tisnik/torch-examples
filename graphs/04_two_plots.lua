@@ -12,7 +12,7 @@
 
 require("gnuplot")
 
-x = torch.range(1, 360, 5)
+x = torch.range(0, 360, 5)
 y1 = torch.sin(x/180.0*math.pi)
 y2 = torch.cos(x/180.0*math.pi)
 
@@ -23,3 +23,4 @@ gnuplot.ylabel("sin x, cos x")
 gnuplot.plot({"sin x", x, y1},
              {"cos x", x, y2})
 gnuplot.plotflush()
+gnuplot.close()

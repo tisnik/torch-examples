@@ -11,13 +11,13 @@
 --
 
 function writeTensor(filename, tensor)
-    fout = torch.DiskFile(filename, "w")
+    local fout = torch.DiskFile(filename, "w")
     fout:writeObject(tensor)
     fout:close()
 end
 
 function readTensor(filename)
-    fin = torch.DiskFile(filename, "r")
+    local fin = torch.DiskFile(filename, "r")
     return fin:readObject(tensor)
     -- no fin:close() is needed here
 end

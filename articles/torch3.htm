@@ -1,0 +1,1655 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Framework Torch: serializace a deserializace tenzorů, práce s grafy</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Framework Torch: serializace a deserializace tenzorů, práce s grafy</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>Třetí část seriálu o frameworku Torch již bude věnována těm činnostem, se kterými se často setkáme v praxi. Nejprve si ukážeme způsob serializace a deserializace tenzorů i dalších (libovolných) objektů a následně si ukážeme způsob vykreslení grafů s využitím gnuplotu.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Serializace a deserializace tenzorů</a></p>
+<p><a href="#k02">2. Serializace a deserializace dalších typů objektů</a></p>
+<p><a href="#k03">3. Uložení hodnot elementů tenzorů bez dalších metainformací</a></p>
+<p><a href="#k04">4. Funkce aplikované na všechny elementy tenzorů</a></p>
+<p><a href="#k05">5. Operátory aplikované postupně na všechny elementy tenzorů</a></p>
+<p><a href="#k06">6. Tvorba grafů v&nbsp;knihovně Torch</a></p>
+<p><a href="#k07">7. Použití knihovny gnuplot</a></p>
+<p><a href="#k08">8. Jednoduchý graf zobrazený přímo na desktopu uživatele</a></p>
+<p><a href="#k09">9. Export grafu do rastrového obrázku (PNG)</a></p>
+<p><a href="#k10">10. Nastavení popisků os</a></p>
+<p><a href="#k11">11. Zobrazení průběhů dvou funkcí</a></p>
+<p><a href="#k12">12. Export grafu do vektorového formátu SVG</a></p>
+<p><a href="#k13">13. Jednoduchý sloupcový graf</a></p>
+<p><a href="#k14">14. Trojrozměrný graf funkce z=f(x,y) – drátový model</a></p>
+<p><a href="#k15">15. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k16">16. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Serializace a deserializace tenzorů</h2>
+
+<p>V&nbsp;první části článku se budeme zabývat problematikou serializace a
+deserializace různých typů objektů, především samozřejmě tenzorů. Knihovna
+<i>Torch</i> umožňuje zapsat obsah tenzoru do souboru, který může být buď čistě
+textový (ASCII) nebo binární. S&nbsp;binárními soubory se sice pracuje mnohem
+rychleji, což poznáte u rozměrnějších tenzorů, ovšem nemusí být přenositelné na
+architektury s&nbsp;jiným pořadím bajtů ve slovech. Navíc mohou být tyto
+soubory větší, než čistě textové soubory (to je ovšem závislé na povaze
+ukládaných dat).</p>
+
+<p>Pro serializaci se používá třída <strong>DataFile</strong> odvozená od
+abstraktní třídy <strong>File</strong>. Pokud budeme chtít uložit tenzor do
+souboru s&nbsp;textovým formátem, postačuje po zavolání konstruktoru použít
+metodu <strong>ascii()</strong> pro specifikaci formátu (lze vynechat, protože
+se jedná o výchozí volbu) a následně na výsledném objektu metodu
+<strong>writeObject</strong>. Na konci by se měl soubor zavřít (i když se zavře
+automaticky po opuštění Torche):</p>
+
+<pre>
+local fout = torch.DiskFile(test.asc", "w"):ascii()
+fout:writeObject(tensor)
+fout:close()
+</pre>
+
+<p>Zápis souboru do binárního souboru probíhá prakticky stejně, jen se zamění
+volání metody <strong>ascii</strong> za <strong>binary</strong>:</p>
+
+<pre>
+local fout = torch.DiskFile(test.bin", "w"):binary()
+fout:writeObject(tensor)
+fout:close()
+</pre>
+
+<p>Vyzkoušejme si nyní uložit několik tenzorů různé velikosti a tvaru do
+textových i binárních souborů. Uložení je implementováno v&nbsp;následující
+funkci:</p>
+
+<pre>
+function writeTensor(filename, tensor)
+    local fout = torch.DiskFile(filename .. ".asc", "w"):ascii()
+    fout:writeObject(tensor)
+    fout:close()
+&nbsp;
+    local fout = torch.DiskFile(filename .. ".bin", "w"):binary()
+    fout:writeObject(tensor)
+    fout:close()
+end
+</pre>
+
+<p>Nyní můžeme tuto funkci zavolat pro různé tenzory:</p>
+
+<pre>
+s1 = torch.Tensor(1)
+s1[1] = 42
+print(s1)
+writeTensor("scalar_1", s1)
+&nbsp;
+s2 = torch.Tensor({42})
+print(s2)
+writeTensor("scalar_2", s2)
+&nbsp;
+v1 = torch.Tensor(3)
+v1[1] = 10
+v1[2] = 20
+v1[3] = 30
+print(v1)
+writeTensor("vector1", v1)
+&nbsp;
+v2 = torch.Tensor({10,20,30})
+print(v2)
+writeTensor("vector2", v2)
+&nbsp;
+m = torch.Tensor({{10,20,30}, {40,50,60}, {70,80,90}})
+print(m2)
+writeTensor("matrix", m)
+&nbsp;
+v = torch.range(1, 24)
+q = v:resize(3, 2, 2, 2)
+print(q)
+writeTensor("tensor_3", q)
+</pre>
+
+<p>Podívejme se nejprve na velikosti souborů, které vznikly pro různé
+tenzory:</p>
+
+<table>
+<tr><th>Soubor</th><th>Velikost</th></tr>
+<tr><td>scalar_1.asc</td><td> 78</td></tr>
+<tr><td>scalar_1.bin</td><td>119</td></tr>
+<tr><td>scalar_2.asc</td><td> 78</td></tr>
+<tr><td>scalar_2.bin</td><td>119</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>vector1.asc</td><td> 84</td></tr>
+<tr><td>vector1.bin</td><td>135</td></tr>
+<tr><td>vector2.asc</td><td> 84</td></tr>
+<tr><td>vector2.bin</td><td>135</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>matrix.asc</td><td>106</td></tr>
+<tr><td>matrix.bin</td><td>199</td></tr>
+<tr><td>tensor_3.asc</td><td>151</td></tr>
+<tr><td>tensor_3.bin</td><td>351</td></tr>
+</table>
+
+<p>Ve skutečnosti se serializuje celý objekt představující tenzor. Přesněji
+řečeno se serializují všechny jeho atributy i atributy vložených objektů.
+V&nbsp;případě tenzoru se jedná především o interní &bdquo;storage&ldquo;,
+s&nbsp;níž jsme se seznámili <a
+href="https://www.root.cz/clanky/torch-framework-pro-strojove-uceni-i-pro-zpracovani-vektoru-a-tenzoru/#k10">v&nbsp;úvodním
+článku</a> <a
+href="https://www.root.cz/serialy/torch-framework-pro-strojove-uceni/">tohoto
+seriálu</a>. Například první tenzor s&nbsp;jediným prvkem se serializuje do
+této podoby, kde vlastní (jediná) komponenta je ono poslední číslo:</p>
+
+<pre>
+4
+1
+3
+V 1
+18
+torch.DoubleTensor
+1
+1
+1
+1
+4
+2
+3
+V 1
+19
+torch.DoubleStorage
+1
+<strong>42</strong>
+</pre>
+
+<p>Příklad serializace vektoru se třemi prvky. Samotný objekt
+<strong>DoubleStorage</strong> evidentně obsahuje dva atributy &ndash; počet
+prvků a jejich hodnoty:</p>
+
+<pre>
+4
+1
+3
+V 1
+18
+torch.DoubleTensor
+1
+3
+1
+1
+4
+2
+3
+V 1
+19
+torch.DoubleStorage
+3
+<strong>10 20 30</strong>
+</pre>
+
+<p>Příklad serializace matice 3&times;3 prvky. Objekt typu
+<strong>DoubleStorage</strong> samozřejmě nebere do úvahy tvar tenzoru, protože
+obsahuje jen pole prvků a jejich počet:</p>
+
+<pre>
+4
+1
+3
+V 1
+18
+torch.DoubleTensor
+2
+3 3
+3 1
+1
+4
+2
+3
+V 1
+19
+torch.DoubleStorage
+9
+<strong>10 20 30 40 50 60 70 80 90</strong>
+</pre>
+
+<p>Aby měla serializace tenzorů nějaký význam, musí samozřejmě existovat i
+opačná cesta, tj.&nbsp;deserializace dat. Ta je taktéž podporována, a to opět
+objektem <strong>DiskFile</strong> a jeho metodou <strong>readObject</strong>.
+Ukažme si jednoduchý příklad serializace a deserializace tenzoru s&nbsp;výpisem
+informací o deserializovaném objektu:</p>
+
+<pre>
+function writeTensor(filename, tensor)
+    local fout = torch.DiskFile(filename, "w")
+    fout:writeObject(tensor)
+    fout:close()
+end
+&nbsp;
+function readTensor(filename)
+    local fin = torch.DiskFile(filename, "r")
+    return fin:readObject(tensor)
+    -- no fin:close() is needed here
+end
+&nbsp;
+function printTensorInfo(tensor)
+    print("Size:")
+    print(tensor:size())
+    print("Elements:")
+    print(tensor:nElement())
+    print("Dimensions:")
+    print(tensor:dim())
+    print("Stride:")
+    print(tensor:stride())
+    print("Storage offset:")
+    print(tensor:storageOffset())
+end
+&nbsp;
+v = torch.range(1, 24)
+q = v:resize(3, 2, 2, 2)
+print(q)
+writeTensor("tensor_3_2.asc", q)
+&nbsp;
+deserialized = readTensor("tensor_3_2.asc")
+print(deserialized)
+&nbsp;
+printTensorInfo(q)
+printTensorInfo(deserialized)
+</pre>
+
+<p>Zkusme si příklad spustit:</p>
+
+<p>Původní tenzor:</p>
+
+<pre>
+(1,1,.,.) =
+   1   2
+   3   4
+&nbsp;
+(2,1,.,.) =
+   9  10
+  11  12
+&nbsp;
+(3,1,.,.) =
+  17  18
+  19  20
+&nbsp;
+(1,2,.,.) =
+   5   6
+   7   8
+&nbsp;
+(2,2,.,.) =
+  13  14
+  15  16
+&nbsp;
+(3,2,.,.) =
+  21  22
+  23  24
+[torch.DoubleTensor of size 3x2x2x2]
+</pre>
+
+<p>Serializovaný a deserializovaný tenzor:</p>
+
+<pre>
+(1,1,.,.) =
+   1   2
+   3   4
+&nbsp;
+(2,1,.,.) =
+   9  10
+  11  12
+&nbsp;
+(3,1,.,.) =
+  17  18
+  19  20
+&nbsp;
+(1,2,.,.) =
+   5   6
+   7   8
+&nbsp;
+(2,2,.,.) =
+  13  14
+  15  16
+&nbsp;
+(3,2,.,.) =
+  21  22
+  23  24
+[torch.DoubleTensor of size 3x2x2x2]
+</pre>
+
+<p>Informace o původním tenzoru:</p>
+
+<pre>
+Size:   
+ 3
+ 2
+ 2
+ 2
+[torch.LongStorage of size 4]
+Elements:       
+24      
+Dimensions:     
+4       
+Stride: 
+ 8
+ 4
+ 2
+ 1
+[torch.LongStorage of size 4]
+&nbsp;
+Storage offset: 
+1       
+</pre>
+
+<p>Informace o deserializovaném tenzoru:</p>
+
+<pre>
+Size:   
+ 3
+ 2
+ 2
+ 2
+[torch.LongStorage of size 4]
+&nbsp;
+Elements:       
+24      
+Dimensions:     
+4       
+Stride: 
+ 8
+ 4
+ 2
+ 1
+[torch.LongStorage of size 4]
+&nbsp;
+Storage offset: 
+1       
+&nbsp;
+</pre>
+
+<p>Můžeme vidět, že se po deserializaci vytvořil klon původního objektu.</p>
+
+<p>Mimochodem, serializovaný tenzor je v&nbsp;textové podobě reprezentován
+takto:</p>
+
+<pre>
+4
+1
+3
+V 1
+18
+torch.DoubleTensor
+4
+3 2 2 2
+8 4 2 1
+1
+4
+2
+3
+V 1
+19
+torch.DoubleStorage
+24
+<strong>1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24</strong>
+</pre>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Serializace a deserializace dalších typů objektů</h2>
+
+<p>Ve skutečnosti je možné s&nbsp;využitím objektu typu
+<strong>DiskFile</strong> serializovat prakticky libovolný objekt
+reprezentovatelný v&nbsp;jazyku <a
+href="https://www.root.cz/serialy/programovaci-jazyk-lua/">Lua</a>. Můžeme si
+to snadno vyzkoušet. Nejprve si zopakujme funkce určené pro serializaci:</p>
+
+<pre>
+function writeObject(filename, object)
+    local fout = torch.DiskFile(filename .. ".asc", "w")
+    fout:writeObject(object)
+    fout:close()
+&nbsp;
+    local fout = torch.DiskFile(filename .. ".bin", "w")
+    fout:writeObject(object)
+    fout:close()
+end
+</pre>
+
+<p>Nyní se pokusíme serializovat speciální hodnoty <strong>nil</strong>,
+<strong>true</strong> a <strong>false</strong>, dále řetězec, číslo, prázdnou
+tabulku, naplněnou tabulku a slovník (což je ovšem taktéž tabulka):</p>
+
+<pre>
+writeObject("nil", nil)
+writeObject("true", true)
+writeObject("false", false)
+&nbsp;
+answer = 42
+writeObject("answer", answer)
+&nbsp;
+writeObject("pi", math.pi)
+&nbsp;
+greeting = "Hello world!"
+writeObject("greeting", greeting)
+&nbsp;
+empty_array = {}
+writeObject("empty_array", empty_array)
+&nbsp;
+array = {1,2,3}
+writeObject("array", array)
+&nbsp;
+array2 = {"xx", "yy", "zz"}
+writeObject("array2", array2)
+&nbsp;
+dict = {x=1, y=2, z=3}
+writeObject("dict", dict)
+</pre>
+
+<p>Podívejme se nejprve na velikosti souborů, které vznikly pro různé
+objekty:</p>
+
+<table>
+<tr><th>Soubor</th><th>Velikost</th></tr>
+<tr><td>nil.asc        </td><td> 2</td></tr>
+<tr><td>nil.bin        </td><td> 4</td></tr>
+<tr><td>true.asc       </td><td> 4</td></tr>
+<tr><td>true.bin       </td><td> 8</td></tr>
+<tr><td>false.asc      </td><td> 4</td></tr>
+<tr><td>false.bin      </td><td> 8</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>answer.asc     </td><td> 5</td></tr>
+<tr><td>answer.bin     </td><td>12</td></tr>
+<tr><td>pi.asc         </td><td>21</td></tr>
+<tr><td>pi.bin         </td><td>12</td></tr>
+<tr><td>greeting.asc   </td><td>18</td></tr>
+<tr><td>greeting.bin   </td><td>20</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>empty_array.asc</td><td> 6</td></tr>
+<tr><td>empty_array.bin</td><td>12</td></tr>
+<tr><td>array2.asc     </td><td>39</td></tr>
+<tr><td>array2.bin     </td><td>78</td></tr>
+<tr><td>array.asc      </td><td>30</td></tr>
+<tr><td>array.bin      </td><td>84</td></tr>
+<tr><td>dict.asc       </td><td>36</td></tr>
+<tr><td>dict.bin       </td><td>75</td></tr>
+</table>
+
+<p>Jediným objektem, který je plně reprezentován jen svým typem, je
+<strong>nil</strong>. Hodnoty <strong>true</strong> a <strong>false</strong>
+jsou reprezentovány svým typem (jedno číslo) a hodnotou (druhé číslo 0 nebo 1);
+řetězce jsou reprezentovány typem (číslo), počtem znaků (číslo) a samotnými
+znaky atd.</p>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Uložení hodnot elementů tenzorů bez dalších metainformací</h2>
+
+<p>Úplná serializace celých tenzorů sice může být výhodná pro další práci
+s&nbsp;nimi, ovšem velmi často se setkáme s&nbsp;požadavkem, aby se výsledný
+tenzor použil například v&nbsp;céčkovém programu či naopak &ndash; aby nějaký
+další nástroj vygeneroval sadu hodnot (celých čísel, reálných čísel), které
+budou moci být načteny do Torche a tam dále zpracovány. I to je samozřejmě
+možné, ale musíme se vzdát serializace celých objektů a namísto toho
+serializovat pouze prvky tenzoru (nezávisle na jeho tvaru).</p>
+
+<p>Celý postup je vlastně jednoduchý &ndash; pro daný tenzor získáme
+<i>storage</i> a do souboru uložíme pouze hodnoty komponent tenzoru. Při
+načítání potom počet komponent získáme snadno &ndash; u binárního souboru je to
+jeho délka podělená bajtovou šířkou jedné komponenty (například 4 nebo osm
+bajtů), u textového souboru pak počet mezer a konců řádků (většinou ale délku
+budete zjišťovat dynamicky). Uložení elementů tenzoru typu
+<strong>IntTensor</strong> do textového i binárního souboru může vypadat
+následovně:</p>
+
+<pre>
+function writeTensorStorage(filename, tensor)
+    local fout = torch.DiskFile(filename .. ".asc", "w"):ascii()
+    local elements = tensor:nElement()
+    local storage = tensor:storage()
+    local written = fout:writeInt(storage)
+    fout:close()
+    print("Written " .. written .. " element(s)")
+&nbsp;
+    local fout = torch.DiskFile(filename .. ".bin", "w"):binary()
+    local elements = tensor:nElement()
+    local storage = tensor:storage()
+    local written = fout:writeInt(storage)
+    fout:close()
+    print("Written " .. written .. " element(s)")
+end
+&nbsp;
+s1 = torch.Tensor(1):int()
+s1[1] = 42
+print(s1)
+writeTensorStorage("scalar_1", s1)
+&nbsp;
+s2 = torch.Tensor({42}):int()
+print(s2)
+writeTensorStorage("scalar_2", s2)
+&nbsp;
+v1 = torch.Tensor(3):int()
+v1[1] = 10
+v1[2] = 20
+v1[3] = 30
+print(v1)
+writeTensorStorage("vector1", v1)
+&nbsp;
+v2 = torch.Tensor({10,20,30}):int()
+print(v2)
+writeTensorStorage("vector2", v2)
+&nbsp;
+m = torch.Tensor({{10,20,30}, {40,50,60}, {70,80,90}}):int()
+print(m2)
+writeTensorStorage("matrix", m)
+&nbsp;
+v = torch.range(1, 24):int()
+q = v:resize(3, 2, 2, 2)
+print(q)
+writeTensorStorage("tensor_3", q)
+</pre>
+
+<p>Velikosti souborů se nyní razantně zkrátily, neboť se skutečně ukládají jen
+hodnoty komponent:</p>
+
+<table>
+<tr><th>Soubor</th><th>Velikost</th></tr>
+<tr><td>scalar_1.asc</td><td>3</td></tr>
+<tr><td>scalar_1.bin</td><td>4</td></tr>
+<tr><td>scalar_2.asc</td><td>3</td></tr>
+<tr><td>scalar_2.bin</td><td>4</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>vector1.asc</td><td> 9</td></tr>
+<tr><td>vector1.bin</td><td>12</td></tr>
+<tr><td>vector2.asc</td><td> 9</td></tr>
+<tr><td>vector2.bin</td><td>12</td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>matrix.asc</td><td>27</td></tr>
+<tr><td>matrix.bin</td><td>36</td></tr>
+<tr><td>tensor_3.asc</td><td>63</td></tr>
+<tr><td>tensor_3.bin</td><td>96</td></tr>
+</table>
+
+<p>Tříprvkový vektor serializovaný do textového souboru:</p>
+
+<pre>
+10 20 30
+</pre>
+
+<p>Tříprvkový vektor serializovaný do binárního souboru:</p>
+
+<pre>
+0000000: 31 30 20 32 30 20 33 30 0a                       10 20 30.
+</pre>
+
+<p>Matice 3&times;3 prvky v&nbsp;textovém souboru:</p>
+
+<pre>
+10 20 30 40 50 60 70 80 90
+</pre>
+
+<p>Matice 3&times;3 prvky v&nbsp;binárním souboru (prohlíženo přes
+<strong>xxd</strong>):</p>
+
+<pre>
+0000000: 0a 00 00 00 14 00 00 00 1e 00 00 00 28 00 00 00  ............(...
+0000010: 32 00 00 00 3c 00 00 00 46 00 00 00 50 00 00 00  2...&lt;...F...P...
+0000020: 5a 00 00 00                                      Z...
+</pre>
+
+<p>Komponenty tenzoru čtvrtého řádu v&nbsp;textovém souboru:</p>
+
+<pre>
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
+</pre>
+
+<p>Komponenty tenzoru čtvrtého řádu v&nbsp;binárním souboru:</p>
+
+<pre>
+0000000: 01 00 00 00 02 00 00 00 03 00 00 00 04 00 00 00  ................
+0000010: 05 00 00 00 06 00 00 00 07 00 00 00 08 00 00 00  ................
+0000020: 09 00 00 00 0a 00 00 00 0b 00 00 00 0c 00 00 00  ................
+0000030: 0d 00 00 00 0e 00 00 00 0f 00 00 00 10 00 00 00  ................
+0000040: 11 00 00 00 12 00 00 00 13 00 00 00 14 00 00 00  ................
+0000050: 15 00 00 00 16 00 00 00 17 00 00 00 18 00 00 00  ................
+</pre>
+
+<p>Poznámka: povšimněte si, že šířka typu <strong>int</strong> je v&nbsp;Torchi
+rovna čtyřem bajtům. Samozřejmě však můžeme použít tenzory takového typu, které
+budou odpovídat požadavkům dalších aplikací (<strong>short</strong>,
+<strong>long</strong>, ...).</p>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Funkce aplikované na všechny elementy tenzorů</h2>
+
+<p>Ještě předtím, než si vysvětlíme způsob vykreslování grafů, si ukážeme,
+jakým způsobem je možné na všechny komponenty tenzorů aplikovat vybranou
+matematickou funkci. Je to velmi jednoduché. Nejprve vytvořme vektor s&nbsp;25
+prvky s&nbsp;hodnotami -12 až 12:</p>
+
+<pre>
+v = torch.range(-12, 13)
+</pre>
+
+<p>Z&nbsp;vektoru vytvoříme matici 5&times;5 prvků:</p>
+
+<pre>
+mx = v:resize(5, 5)
+&nbsp;
+print(mx)
+</pre>
+
+<p>Matice vypadá takto:</p>
+
+<pre>
+-12 -11 -10  -9  -8
+ -7  -6  -5  -4  -3
+ -2  -1   0   1   2
+  3   4   5   6   7
+  8   9  10  11  12
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>Z&nbsp;této matice můžeme vytvořit novou matici, přičemž se na každý prvek
+bude aplikovat funkce <strong>abs</strong>:</p>
+
+<pre>
+my = torch.abs(mx)
+&nbsp;
+print(my)
+</pre>
+
+<p>Nová matice vypadá takto:</p>
+
+<pre>
+ 12  11  10   9   8
+  7   6   5   4   3
+  2   1   0   1   2
+  3   4   5   6   7
+  8   9  10  11  12
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>Podobně můžeme postupovat i v&nbsp;případě, kdy budeme chtít vypočítat
+druhou mocninu všech prvků vektoru:</p>
+
+<pre>
+vx = torch.range(0, 10)
+&nbsp;
+print(vx)
+</pre>
+
+<p>Obsah vektoru:</p>
+
+<pre>
+  0
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+[torch.DoubleTensor of size 11]
+</pre>
+
+<p>Dále vytvoříme nový vektor obsahující druhé mocniny prvků původního vektoru.
+Povšimněte si, jakým způsobem se funkci předává druhý parametr:</p>
+
+<pre>
+vy = torch.pow(vx, 2)
+&nbsp;
+print(vy)
+</pre>
+
+<p>Obsah nového vektoru:</p>
+
+<pre>
+   0
+   1
+   4
+   9
+  16
+  25
+  36
+  49
+  64
+  81
+ 100
+[torch.DoubleTensor of size 11]
+</pre>
+
+<p>Poznámka: aplikací funkce se v&nbsp;těchto případech vytvoří nový tenzor;
+původní tenzor zůstane zachován.</p>
+
+<p>Seznam všech dostupných funkcí aplikovatelných na všechny komponenty tenzorů:</p>
+
+<table>
+<tr><th>Funkce</th></tr>
+<tr><td>torch.abs</td></tr>
+<tr><td>torch.sign</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>torch.floor</td></tr>
+<tr><td>torch.ceil</td></tr>
+<tr><td>torch.round</td></tr>
+<tr><td>torch.trunc</td></tr>
+<tr><td>torch.frac</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>torch.sin</td></tr>
+<tr><td>torch.cos</td></tr>
+<tr><td>torch.tan</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>torch.sinh</td></tr>
+<tr><td>torch.cosh</td></tr>
+<tr><td>torch.tanh</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>torch.asin</td></tr>
+<tr><td>torch.acos</td></tr>
+<tr><td>torch.atan</td></tr>
+<tr><td>torch.atan2</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>torch.exp</td></tr>
+<tr><td>torch.log</td></tr>
+<tr><td>torch.log1p</td></tr>
+<tr><td>torch.pow</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>torch.sqrt</td></tr>
+<tr><td>torch.rsqrt</td></tr>
+<tr><td>torch.sigmoid</td></tr>
+</table>
+
+<p>Většina funkcí akceptuje buď pouze tenzor nebo tenzor a skalární hodnotu.
+Výjimkou je funkce <strong>torch.atan2</strong>, která počítá <a
+href="https://cs.wikipedia.org/wiki/Arkus_tangens">arkus tangens</a> pro podíl
+komponent dvou tenzorů (ty by měly mít stejný tvar).</p>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Operátory aplikované postupně na všechny elementy tenzorů</h2>
+
+<p>Pro zpracování tenzorů lze použít i běžné matematické operátory +, -, *, / a
+% aplikované buď postupně na odpovídající si komponenty dvou tenzorů nebo na
+komponenty tenzoru a skalární hodnotu:</p>
+
+<pre>
+th&gt; <strong>v=torch.Tensor({1,2,3,4})</strong>
+                                                                      [0.0002s]
+th&gt; <strong>v*2</strong>
+ 2
+ 4
+ 6
+ 8
+[torch.DoubleTensor of size 4]
+&nbsp;
+                                                                      [0.0005s]
+th&gt; <strong>2*v</strong>
+ 2
+ 4
+ 6
+ 8
+[torch.DoubleTensor of size 4]
+&nbsp;
+                                                                      [0.0003s]
+th&gt; <strong>v%2</strong>
+ 1
+ 0
+ 1
+ 0
+[torch.DoubleTensor of size 4]
+&nbsp;
+                                                                      [0.0003s]
+&nbsp;
+th&gt; <strong>v + 100</strong>
+ 101
+ 102
+ 103
+ 104
+[torch.DoubleTensor of size 4]
+    &nbsp;
+                                                                      [0.0003s]
+</pre>
+
+<p>Většina operací vyžaduje, aby tenzory měly stejný tvar i velikost:</p>
+
+<pre>
+th&gt; <strong>v1=torch.range(1,5)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>v2=torch.range(1,10)</strong>
+                                                                      [0.0001s]
+th&gt; <strong>v1+v2</strong>
+inconsistent tensor size, expected r_ [5], t [5] and src [10] to have the same number of elements, but got 5, 5 and 10 elements respectively at torch/pkg/torch/lib/TH/generic/THTensorMath.c:887
+stack traceback:
+        [C]: at 0x7f1780e95000
+        [C]: in function '__add'
+        [string "_RESULT={v1+v2}"]:1: in main chunk
+        [C]: in function 'xpcall'
+        /home/tester/torch/install/share/lua/5.1/trepl/init.lua:661: in function 'repl'
+        ...novs/torch/install/lib/luarocks/rocks/trepl/scm-1/bin/th:204: in main chunk
+        [C]: at 0x00405780
+                                                                          [0.0003s]
+</pre>
+
+<p>Podívejme se nyní na složitější příklad, který kombinuje naše znalosti
+z&nbsp;předchozí kapitoly:</p>
+
+<pre>
+vx = torch.range(1, 11)
+vy = torch.pow(vx-6, 2)
+&nbsp;
+print(vx)
+print(vy)
+</pre>
+
+<p>Původní vektor <strong>vx</strong>:</p>
+
+<pre>
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+ 11
+[torch.DoubleTensor of size 11]
+</pre>
+
+<p>Vektor <strong>vy</strong> získaný aplikací funkce
+<strong>pow(vx-6,2)</strong>:</p>
+
+<pre>
+ 25
+ 16
+  9
+  4
+  1
+  0
+  1
+  4
+  9
+ 16
+ 25
+[torch.DoubleTensor of size 11]
+</pre>
+
+<p>Nyní se pokusíme vytvořit vektor hodnot funkce sin x:</p>
+
+<pre>
+vx = torch.range(0, 360, 10)
+vy = torch.sin(vx/180.0*math.pi)
+&nbsp;
+print(vx)
+print(vy)
+</pre>
+
+<p>Druhá verze vektoru <strong>vx</strong> s&nbsp;úhly:</p>
+
+<pre>
+   0
+  10
+  20
+  30
+ ...
+ ...
+ ...
+ 330
+ 340
+ 350
+ 360
+[torch.DoubleTensor of size 37]
+</pre>
+
+<p>Vektor (tabulka) hodnot funkce sin x:</p>
+
+<pre>
+ 0.0000
+ 0.1736
+ 0.3420
+ 0.5000
+ 0.6428
+ 0.7660
+ ...
+ ...
+ ...
+-0.7660
+-0.6428
+-0.5000
+-0.3420
+-0.1736
+-0.0000
+[torch.DoubleTensor of size 37]
+</pre>
+
+<p>Poznámka: v&nbsp;dokumentaci se sice píše, že prvním operandem musí být
+tenzor a nikoli skalár, ovšem ve skutečnosti lze použít obě varianty.</p>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Tvorba grafů v&nbsp;knihovně Torch</h2>
+
+<p>V&nbsp;mnoha případech budeme chtít zobrazit výsledky nějakého výpočtu nebo
+analýzy formou grafu. Grafický výstup je samozřejmě v&nbsp;knihovně
+<i>Torch</i> podporován, a to dokonce několika způsoby. Již v&nbsp;základní
+instalaci je obsaženo rozhraní pro knihovnu <i>gnuplot</i>, což je téma,
+kterému se budeme (prozatím ve stručnosti) věnovat v&nbsp;navazujících
+kapitolách. Alternativně je však možné použít backendy <i>gfx.js</i>
+popř.&nbsp;<i>visdom</i> a vykreslovat grafy s&nbsp;využitím webových
+technologií. Pro interaktivní tvorbu (nejenom) grafů je pak určen nástroj
+<i>iTorch</i>, který spojuje možnosti iPythonu s&nbsp;Torchem. Popisem
+<i>iTorche</i> se budeme věnovat v&nbsp;samostatném článku, protože se jedná o
+poměrně rozsáhlé téma; navíc nemusí být instalace zcela jednoduchá. Dnes se
+seznámíme především s&nbsp;vykreslením průběhu funkcí jedné nezávislé proměnné
+či dvou nezávislých proměnných. Navzorkované hodnoty těchto funkcí jsou
+reprezentovány vektorem či maticí, tj.&nbsp;pro jejich zpracování je možné
+použít všech možnosti, které nám knihovna Torch nabízí.</p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Použití knihovny gnuplot</h2>
+
+<p>Nástroj <i>gnuplot</i> je určen pro tvorbu plošných (2D) ale i prostorových
+(3D) grafů, včetně možností vizualizace vektorových polí. Přitom se jedná o
+program, který je možné v&nbsp;celé své šíři ovládat pouze z&nbsp;příkazové
+řádky, a to buď s&nbsp;využitím uživatelsky vytvořených skriptů, nebo
+interaktivním způsobem, tj.&nbsp;postupným zadáváním a následným prováděním
+příkazů zapsaných na standardní vstup (<i>stdin</i>), což většinou znamená
+z&nbsp;klávesnice, ale standardní vstup je samozřejmě možné pomocí prostředků
+operačního systému přesměrovat a použít místo něj například výstup
+z&nbsp;jiného běžícího procesu. Vývoj této aplikace probíhal velmi dlouho
+(poprvé jsem se s&nbsp;<i>gnuplotem</i> setkal ještě v&nbsp;dobách kralování
+DOSu na počítačích s&nbsp;procesorem 386 a pouhými čtyřmi megabyty RAM) a mimo
+jiné i proto se dnes jedná o jeden z&nbsp;nejvíce propracovaných programů
+určených pro dávkovou tvorbu grafů (mezi další používané aplikace
+s&nbsp;podobným zaměřením patří například <i>plotutils</i>, což je taktéž
+utilita resp.&nbsp;sada utilit šířených pod GNU licencí).</p>
+
+<p>Další předností <i>gnuplotu</i> je &ndash; minimálně pro programátory
+&ndash; zabudování poměrně sofistikovaného příkazového jazyka, pomocí kterého
+je možné zadávat a spouštět makra řídící načtení dat uložených v&nbsp;externím
+souboru, vytvoření grafu a jeho uložení resp.&nbsp;export do zvoleného formátu
+atd. <i>gnuplot</i> se také vyznačuje malým počtem interních chyb &ndash; to je
+důležité zejména při dávkovém vytváření mnoha grafů, kdy není možná jejich
+důsledná kontrola člověkem a musíme se spolehnout na to, že grafy budou po
+automatickém zpracování korektní. <i>gnuplot</i> je k&nbsp;dispozici pro mnoho
+platforem, zjednodušeně je možné říci, že tam, kde se rozběhne nějaký překladač
+ANSI C (dokonce i šestnáctibitový), je možné zprovoznit i <i>gnuplot</i>.</p>
+
+<p>Při popisu dalších vlastností <i>gnuplotu</i> začněme &ndash; možná poněkud
+netypicky &ndash; popisem možností exportu vytvořených grafů do některých
+podporovaných souborových formátů. Při výstupu grafů je možné použít jak
+rastrové, tak i vektorové grafické souborové formáty. Oba dva typy grafických
+formátů jsou totiž důležité: rastrovou grafiku využijeme například při
+publikování grafů na Internetu, vektorová grafika se naopak hodí při přípravě
+publikací určených pro tisk. Mezi podporované rastrové formáty patří <i>PBM</i>
+(<i>Portable BitMap</i>), <i>PNG</i> (<i>Portable Network Graphics</i> &ndash;
+vhodné pro web), <i>GIF</i> (pouze s&nbsp;podporou dalších knihoven),
+<i>JPEG</i> apod. Z&nbsp;vektorových formátů je podporován především
+<i>PostScript</i>, dále je pak možné provést výstup například do
+<i>L<sup>A</sup>T<sub>E</sub>Xu</i>, <i>DXF</i> (<i>Drawing Interchange File
+Format</i> &ndash; formát podporovaný prakticky každým CAD systémem) a do
+<i>SVG</i> (to je ideální pro webové prezentace).</p>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Jednoduchý graf zobrazený přímo na desktopu uživatele</h2>
+
+<p>Jak již víme z&nbsp;předchozích dvou kapitol, poskytuje framework Torch
+rozhraní umožňující tvorbu grafů s&nbsp;využitím <i>gnuplotu</i> jako jednoho
+z&nbsp;podporovaných backendů. Podívejme se tedy na postup vykreslení velmi
+jednoduchého grafu s&nbsp;průběhem funkce sinus.</p>
+
+<p>Nejprve musíme naimportovat modul <strong>gnuplot</strong>:</p>
+
+<pre>
+require("gnuplot")
+</pre>
+
+<p>Dále vytvoříme vektor obsahující hodnoty od 0 do 360 s&nbsp;krokem 5:</p>
+
+<pre>
+x = torch.range(0, 360, 5)
+</pre>
+
+<p>Ve třetím kroku z&nbsp;předchozího vektoru <strong>x</strong> vytvoříme nový
+vektor s&nbsp;průběhem funkce sinus. Vektor bude obsahovat stejný počet 72
+prvků, samozřejmě s&nbsp;jinými hodnotami:</p>
+
+<pre>
+y = torch.sin(x/180.0*math.pi)
+</pre>
+
+<p>Zbývá nám specifikace titulku grafu a jeho vykreslení do samostatného okna
+na obrazovce:</p>
+
+<pre>
+gnuplot.title("sin x")
+gnuplot.figure(1)
+gnuplot.plot(x, y)
+</pre>
+
+<p>Metodě <strong>gnuplot.figure</strong> se předává nepovinný celočíselný
+identifikátor grafu. Pokud se tento identifikátor neuvede, vykreslí se vždy
+nové okno s&nbsp;grafem. Metodě <strong>gnuplot.plot</strong> se předávají
+hodnoty na x-ové ose i hodnoty, které se mají vynést na y-ovou osu. Nové okno
+se otevřen až po zavolání této metody (což má význam jen při interaktivní
+práci).</p>
+
+<img src="https://i.iinfo.cz/images/43/torch3-1.png" class="image-308482" alt="&#160;" width="644" height="570" />
+<p><i>Obrázek 1: Graf zobrazený v&nbsp;samostatném okně na desktopu.</i></p>
+
+<p>Celý příklad vypadá následovně:</p>
+
+<pre>
+require("gnuplot")
+&nbsp;
+x = torch.range(0, 360, 5)
+y = torch.sin(x/180.0*math.pi)
+&nbsp;
+gnuplot.title("sin x")
+gnuplot.figure(1)
+gnuplot.plot(x, y)
+</pre>
+
+<img src="https://i.iinfo.cz/images/43/torch3-2.png" class="image-308483" alt="&#160;" width="368" height="335" />
+<p><i>Obrázek 2: V&nbsp;případě potřeby je možné graf uložit do vybraného
+rastrového nebo vektorového formátu.</i></p>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Export grafu do rastrového obrázku (PNG)</h2>
+
+<p>Zobrazení grafu na obrazovce je užitečné při interaktivní práci
+s&nbsp;Torchem, ovšem ve chvíli, kdy se automaticky či poloautomaticky
+zpracovává delší skript (například pro různá vstupní data), budeme požadovat
+export grafu do souboru. Jednou z&nbsp;možností je export grafu do rastrového
+obrázku ve formátu PNG. To je snadné zajistit; postačuje pouze nahradit
+volání:</p>
+
+<pre>
+gnuplot.figure(1)
+</pre>
+
+<p>za volání:</p>
+
+<pre>
+gnuplot.pngfigure("plot2.png")
+</pre>
+
+<p>Vzhledem k&nbsp;tomu, že se má graf vykreslit neinteraktivně, je nutné na
+konec programu přidat volání:</p>
+
+<pre>
+gnuplot.plotflush()
+</pre>
+
+<p>Navíc je ještě vhodné na samotném konci přidat volání metody:</p>
+
+<pre>
+gnuplot.close()
+</pre>
+
+<p>Toto volání zabezpečí uzavření souboru s&nbsp;obrázkem grafu. Soubor se sice
+korektně uzavře i po doběhnutí celého skriptu, takže je toto volání zdánlivě
+nadbytečné, ovšem pokud budete vytvářet stovky grafů, mohl by skript zhavarovat
+kvůli velkému množství současně otevřených souborů.</p>
+
+<img src="https://i.iinfo.cz/images/43/torch3-3.png" class="image-308484" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 3: Průběh funkce sin x naznačený polyčárou.</i></p>
+
+<p>Opět se podívejme na to, jak vypadá celý příklad:</p>
+
+<pre>
+require("gnuplot")
+&nbsp;
+x = torch.range(0, 360, 5)
+y = torch.sin(x/180.0*math.pi)
+&nbsp;
+gnuplot.pngfigure("plot2.png")
+gnuplot.title("sin x")
+&nbsp;
+gnuplot.plot(x, y)
+&nbsp;
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Nastavení popisků os</h2>
+
+<p>Podobně jako existuje metoda <strong>gnuplot.title</strong> určená pro
+nastavení titulku celého grafu, je možné specifikovat popisy os <i>x</i>,
+<i>y</i> a u některých typů grafů i osy <i>z</i>. Je to velmi snadné:</p>
+
+<pre>
+gnuplot.title("sin x")
+gnuplot.xlabel("x")
+gnuplot.ylabel("sin x")
+</pre>
+
+<img src="https://i.iinfo.cz/images/43/torch3-4.png" class="image-308485" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 4: Průběh funkce sin x naznačený polyčárou s&nbsp;popiskami
+horizontální i vertikální osy.</i></p>
+
+<p>Zdrojový kód skriptu se změní jen nepatrně:</p>
+
+<pre>
+require("gnuplot")
+&nbsp;
+x = torch.range(0, 360, 5)
+y = torch.sin(x/180.0*math.pi)
+&nbsp;
+gnuplot.pngfigure("plot3.png")
+gnuplot.title("sin x")
+gnuplot.xlabel("x")
+gnuplot.ylabel("sin x")
+&nbsp;
+gnuplot.plot(x, y)
+&nbsp;
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Zobrazení průběhů dvou funkcí</h2>
+
+<p>Metoda <strong>gnuplot.plot</strong> nás neomezuje na zobrazení pouze
+jediného průběhu funkce. Pokud se například dostaneme do situace, kdy budeme
+chtít zobrazit průběhy dvou funkcí (nebo i více funkcí) a současně budou mít
+funkce společnou y-ovou osu (tedy zhruba stejné amplitudy), lze to zařídit
+velmi jednoduše. Nejprve si průběhy obou funkcí vytvoříme &ndash; bude se
+samozřejmě jednat o vektory obsahující hodnoty funkcí ve zvolených bodech:</p>
+
+<pre>
+x = torch.range(0, 360, 5)
+y1 = torch.sin(x/180.0*math.pi)
+y2 = torch.cos(x/180.0*math.pi)
+</pre>
+
+<p>Následně se vykreslení obou funkcí provede takto:</p>
+
+<pre>
+gnuplot.plot({"sin x", x, y1},
+             {"cos x", x, y2})
+</pre>
+
+<p>Povšimněte si, že předáváme dvojici polí (či tabulek), přičemž prvním prvkem
+polí je text použitý v&nbsp;legendě, druhý prvek představuje hodnoty na x-ové
+ose a třetí prvek pak hodnoty samotné funkce, která se má vykreslit.</p>
+
+<img src="https://i.iinfo.cz/images/43/torch3-5.png" class="image-308486" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 5: Průběhy funkcí sin x a cos x.</i></p>
+
+<p>Zdrojový kód skriptu bude vypadat takto:</p>
+
+<pre>
+require("gnuplot")
+&nbsp;
+x = torch.range(0, 360, 5)
+y1 = torch.sin(x/180.0*math.pi)
+y2 = torch.cos(x/180.0*math.pi)
+&nbsp;
+gnuplot.pngfigure("plot4.png")
+gnuplot.title("sin x and cos x")
+gnuplot.xlabel("x")
+gnuplot.ylabel("sin x, cos x")
+gnuplot.plot({"sin x", x, y1},
+             {"cos x", x, y2})
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+<p>Podobným způsobem si můžeme zobrazit průběh napětí u třífázového
+napájení:</p>
+
+<pre>
+require("gnuplot")
+&nbsp;
+x = torch.range(0, 360, 5)
+y1 = torch.sin(x/180.0*math.pi)
+y2 = torch.sin((x+120)/180.0*math.pi)
+y3 = torch.sin((x-120)/180.0*math.pi)
+&nbsp;
+gnuplot.pngfigure("plot5.png")
+gnuplot.title("Three-phases")
+gnuplot.xlabel("x")
+gnuplot.ylabel("sin x, cos x")
+&nbsp;
+gnuplot.plot({"phase 1", x, y1},
+             {"phase 2", x, y2},
+             {"phase 3", x, y3})
+&nbsp;
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+<img src="https://i.iinfo.cz/images/43/torch3-6.png" class="image-308487" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 6: Naznačení průběhu napětí u třífázového napájení.</i></p>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Export grafu do vektorového formátu SVG</h2>
+
+<p>Volba výstupního formátu obsahujícího vytvořený graf se provádí na základě
+zavolané metody:</p>
+
+<table>
+<tr><th>Metoda</th><th>Formát výstupního souboru</th></tr>
+<tr><td>gnuplot.epsfigure(jméno_výstupního_souboru)</td><td>Encapsulated PostScript (varianta <a href="https://www.root.cz/clanky/graficky-metaformat-postscript/">PostScriptu</a>)</td></tr>
+<tr><td>gnuplot.pdffigure(jméno_výstupního_souboru)</td><td>PDF</td></tr>
+<tr><td>gnuplot.pngfigure(jméno_výstupního_souboru)</td><td><a href="https://www.root.cz/clanky/png-is-not-gif/">PNG</a></td></tr>
+<tr><td>gnuplot.svgfigure(jméno_výstupního_souboru)</td><td><a href="https://www.root.cz/clanky/vektorovy-graficky-format-svg/">SVG</a></td></tr>
+</table>
+
+<p>Poměrně často se můžeme setkat s&nbsp;požadavkem na vytvoření grafu ve
+vektorové podobě, který by byl škálovatelný podle typu zařízení, na kterém se
+graf zobrazuje. Téměř ideálním formátem pro tento požadavek je formát SVG
+(<i>Scalable Vector Graphics</i>). Graf se do SVG vyexportuje jednoduše:</p>
+
+<pre>
+require("gnuplot")
+&nbsp;
+x = torch.range(0, 360, 5)
+y1 = torch.sin(x/180.0*math.pi)
+y2 = torch.cos(x/180.0*math.pi)
+&nbsp;
+gnuplot.svgfigure("plot5.svg")
+gnuplot.title("sin x and cos x")
+gnuplot.xlabel("x")
+gnuplot.ylabel("sin x, cos x")
+gnuplot.plot({"sin x", x, y1},
+             {"cos x", x, y2})
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Jednoduchý sloupcový graf</h2>
+
+<p>V&nbsp;dalším příkladu se pokusíme nahradit volání:</p>
+
+<pre>
+gnuplot.plot(x, y)
+</pre>
+
+<p>za:</p>
+
+<pre>
+gnuplot.bar(x, y)
+</pre>
+
+<img src="https://i.iinfo.cz/images/43/torch3-7.png" class="image-308488" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 7: Jednoduchý sloupcový graf.</i></p>
+
+<p>Výsledkem bude graf, v&nbsp;němž se namísto polyčáry spojující jednotlivé
+hodnoty funkce vykreslí sloupcový graf. Ostatně i z&nbsp;tohoto důvodu jsme
+zmenšili počet hodnot ze 72 na polovinu (vektory <strong>x</strong> a
+<strong>y</strong> mají jen 36 prvků):</p>
+
+<pre>
+require("gnuplot")
+&nbsp;
+x = torch.range(0, 360, 10)
+y = torch.sin(x/180.0*math.pi)
+&nbsp;
+gnuplot.pngfigure("plot6.png")
+gnuplot.title("sin x")
+&nbsp;
+gnuplot.bar(x, y)
+&nbsp;
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+<p>Poznámka: sloupcový graf je možné zkombinovat s&nbsp;liniovým grafem. Jak se
+to provádí si ukážeme v&nbsp;navazujícím článku.</p>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Trojrozměrný graf funkce z=f(x,y) – drátový model</h2>
+
+<p>V&nbsp;této kapitole si stručně vysvětlíme možnosti tvorby grafů funkcí typu
+z=f(x,y), tj.&nbsp;funkcí se dvěma nezávislými proměnnými.</p>
+
+<img src="https://i.iinfo.cz/images/43/torch3-8.png" class="image-308489" alt="&#160;" width="595" height="492" />
+<p><i>Obrázek 8: Funkce dvou nezávislých proměnných vykreslená
+&bdquo;konkurenčním&ldquo; frameworkem Matplotlib.</i></p>
+
+<p>Tyto funkce je možné zobrazit různým způsobem, například ve formě kontur či
+vyplněné plochy, ovšem zpočátku si ukážeme, jak se vykreslí &bdquo;pouhý&ldquo;
+drátěný model (<i>wireframe</i>) s&nbsp;průběhem funkce.</p>
+
+<pre>
+require("gnuplot")
+&nbsp;
+GRID=40
+&nbsp;
+v = torch.range(0, GRID*GRID)
+v = v - 12
+m = v:resize(GRID, GRID)
+m = torch.sin(m*4.0*math.pi/90.0/GRID)
+&nbsp;
+gnuplot.pngfigure("plot7.png")
+gnuplot.title("splot")
+gnuplot.splot(m)
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+<img src="https://i.iinfo.cz/images/43/torch3-9.png" class="image-308490" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 9: Graf vykreslený předchozím demonstračním příkladem.</i></p>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Všechny demonstrační příklady, které jsme si popsali v&nbsp;předchozích
+kapitolách, najdete v&nbsp;GIT repositáři dostupném na adrese <a
+href="https://github.com/tisnik/torch-examples.git">https://github.com/tisnik/torch-examples.git</a>.
+Následují odkazy na zdrojové kódy jednotlivých příkladů:</p>
+
+<table>
+<tr><th>Příklad</th><th>Odkaz</th></tr>
+<tr><td>basics/24_gather_from_vector.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/24_gather_from_vector.lua">https://github.com/tisnik/torch-examples/blob/master/basics/24_gather_from_vector.lua</a></td></tr>
+<tr><td>basics/25_gather_from_matrix.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/25_gather_from_matrix.lua">https://github.com/tisnik/torch-examples/blob/master/basics/25_gather_from_matrix.lua</a></td></tr>
+<tr><td>basics/26_functions.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/26_functions.lua">https://github.com/tisnik/torch-examples/blob/master/basics/26_functions.lua</a></td></tr>
+<tr><td>basics/27_operators.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/basics/27_operators.lua">https://github.com/tisnik/torch-examples/blob/master/basics/27_operators.lua</a></td></tr>
+<td><td>&nbsp;</td><th>&nbsp;</th></td>
+<tr><td>io/01_write_to_disk.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/io/01_write_to_disk.lua">https://github.com/tisnik/torch-examples/blob/master/io/01_write_to_disk.lua</a></td></tr>
+<tr><td>io/02_deserialize.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/io/02_deserialize.lua">https://github.com/tisnik/torch-examples/blob/master/io/02_deserialize.lua</a></td></tr>
+<tr><td>io/03_write_any_object_to_disk.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/io/03_write_any_object_to_disk.lua">https://github.com/tisnik/torch-examples/blob/master/io/03_write_any_object_to_disk.lua</a></td></tr>
+<tr><td>io/04_write_storage.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/io/04_write_storage.lua">https://github.com/tisnik/torch-examples/blob/master/io/04_write_storage.lua</a></td></tr>
+<td><td>&nbsp;</td><th>&nbsp;</th></td>
+<tr><td>graphs/01_simple_plot.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/graphs/01_simple_plot.lua">https://github.com/tisnik/torch-examples/blob/master/graphs/01_simple_plot.lua</a></td></tr>
+<tr><td>graphs/02_plot_to_file.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/graphs/02_plot_to_file.lua">https://github.com/tisnik/torch-examples/blob/master/graphs/02_plot_to_file.lua</a></td></tr>
+<tr><td>graphs/03_labels.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/graphs/03_labels.lua">https://github.com/tisnik/torch-examples/blob/master/graphs/03_labels.lua</a></td></tr>
+<tr><td>graphs/04_two_plots.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/graphs/04_two_plots.lua">https://github.com/tisnik/torch-examples/blob/master/graphs/04_two_plots.lua</a></td></tr>
+<tr><td>graphs/05_three-phases.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/graphs/05_three-phases.lua">https://github.com/tisnik/torch-examples/blob/master/graphs/05_three-phases.lua</a></td></tr>
+<tr><td>graphs/06_svg_output.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/graphs/06_svg_output.lua">https://github.com/tisnik/torch-examples/blob/master/graphs/06_svg_output.lua</a></td></tr>
+<tr><td>graphs/07_bars.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/graphs/07_bars.lua">https://github.com/tisnik/torch-examples/blob/master/graphs/07_bars.lua</a></td></tr>
+<tr><td>graphs/08_splot.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/graphs/08_splot.lua">https://github.com/tisnik/torch-examples/blob/master/graphs/08_splot.lua</a></td></tr>
+</table>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>Stránka projektu Torch<br />
+<a href="http://torch.ch/">http://torch.ch/</a>
+</li>
+
+<li>Torch: Serialization<br />
+<a href="https://github.com/torch/torch7/blob/master/doc/serialization.md">https://github.com/torch/torch7/blob/master/doc/serialization.md</a>
+</li>
+
+<li>Torch na GitHubu (několik repositářů)<br />
+<a href="https://github.com/torch">https://github.com/torch</a>
+</li>
+
+<li>Torch (machine learning), Wikipedia<br />
+<a href="https://en.wikipedia.org/wiki/Torch_%28machine_learning%29">https://en.wikipedia.org/wiki/Torch_%28machine_learning%29</a>
+</li>
+
+<li>Torch Package Reference Manual<br />
+<a href="https://github.com/torch/torch7/blob/master/README.md">https://github.com/torch/torch7/blob/master/README.md</a>
+</li>
+
+<li>Torch Cheatsheet<br />
+<a href="https://github.com/torch/torch7/wiki/Cheatsheet">https://github.com/torch/torch7/wiki/Cheatsheet</a>
+</li>
+
+<li>Plotting with Torch7<br />
+<a href="http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/">http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/</a>
+</li>
+
+<li>Plotting Package Manual with Gnuplot<br />
+<a href="https://github.com/torch/gnuplot/blob/master/README.md">https://github.com/torch/gnuplot/blob/master/README.md</a>
+</li>
+
+<li>An Introduction to Tensors<br />
+<a href="https://math.stackexchange.com/questions/10282/an-introduction-to-tensors">https://math.stackexchange.com/questions/10282/an-introduction-to-tensors</a>
+</li>
+
+<li>Differences between a matrix and a tensor<br />
+<a href="https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor">https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor</a>
+</li>
+
+<li>Qualitatively, what is the difference between a matrix and a tensor?<br />
+<a href="https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?">https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?</a>
+</li>
+
+<li>BLAS (Basic Linear Algebra Subprograms)<br />
+<a href="http://www.netlib.org/blas/">http://www.netlib.org/blas/</a>
+</li>
+
+<li>Basic Linear Algebra Subprograms (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms">https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms</a>
+</li>
+
+<li>Comparison of deep learning software<br />
+<a href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software</a>
+</li>
+
+<li>TensorFlow<br />
+<a href="https://www.tensorflow.org/">https://www.tensorflow.org/</a>
+</li>
+
+<li>Caffe2 (A New Lightweight, Modular, and Scalable Deep Learning Framework)<br />
+<a href="https://caffe2.ai/">https://caffe2.ai/</a>
+</li>
+
+<li>PyTorch<br />
+<a href="http://pytorch.org/">http://pytorch.org/</a>
+</li>
+
+<li>Seriál o programovacím jazyku Lua<br />
+<a href="http://www.root.cz/serialy/programovaci-jazyk-lua/">http://www.root.cz/serialy/programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (2)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (3)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (4)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (5 - tabulky a pole)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (6 - překlad programových smyček do mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (7 - dokončení popisu mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (8 - základní vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (9 - další vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (10 - JIT překlad do nativního kódu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (11 - JIT překlad do nativního kódu procesorů s architekturami x86 a ARM)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (12 - překlad operací s reálnými čísly)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/</a>
+</li>
+
+<li>Lua Profiler (GitHub)<br />
+<a href="https://github.com/luaforge/luaprofiler">https://github.com/luaforge/luaprofiler</a>
+</li>
+
+<li>Lua Profiler (LuaForge)<br />
+<a href="http://luaforge.net/projects/luaprofiler/">http://luaforge.net/projects/luaprofiler/</a>
+</li>
+
+<li>ctrace<br />
+<a href="http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</li>
+
+<li>The Lua VM, on the Web<br />
+<a href="https://kripken.github.io/lua.vm.js/lua.vm.js.html">https://kripken.github.io/lua.vm.js/lua.vm.js.html</a>
+</li>
+
+<li>Lua.vm.js REPL<br />
+<a href="https://kripken.github.io/lua.vm.js/repl.html">https://kripken.github.io/lua.vm.js/repl.html</a>
+</li>
+
+<li>lua2js<br />
+<a href="https://www.npmjs.com/package/lua2js">https://www.npmjs.com/package/lua2js</a>
+</li>
+
+<li>lua2js na GitHubu<br />
+<a href="https://github.com/basicer/lua2js-dist">https://github.com/basicer/lua2js-dist</a>
+</li>
+
+<li>Lua (programming language)<br />
+<a href="http://en.wikipedia.org/wiki/Lua_(programming_language)">http://en.wikipedia.org/wiki/Lua_(programming_language)</a>
+</li>
+
+<li>LuaJIT 2.0 SSA IR
+<a href="http://wiki.luajit.org/SSA-IR-2.0">http://wiki.luajit.org/SSA-IR-2.0</a>
+</li>
+
+<li>The LuaJIT Project<br />
+<a href="http://luajit.org/index.html">http://luajit.org/index.html</a>
+</li>
+
+<li>LuaJIT FAQ<br />
+<a href="http://luajit.org/faq.html">http://luajit.org/faq.html</a>
+</li>
+
+<li>LuaJIT Performance Comparison<br />
+<a href="http://luajit.org/performance.html">http://luajit.org/performance.html</a>
+</li>
+
+<li>LuaJIT 2.0 intellectual property disclosure and research opportunities<br />
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908">http://article.gmane.org/gmane.comp.lang.lua.general/58908</a>
+</li>
+
+<li>LuaJIT Wiki<br />
+<a href="http://wiki.luajit.org/Home">http://wiki.luajit.org/Home</a>
+</li>
+
+<li>LuaJIT 2.0 Bytecode Instructions<br />
+<a href="http://wiki.luajit.org/Bytecode-2.0">http://wiki.luajit.org/Bytecode-2.0</a>
+</li>
+
+<li>Programming in Lua (first edition)<br />
+<a href="http://www.lua.org/pil/contents.html">http://www.lua.org/pil/contents.html</a>
+</li>
+
+<li>Lua 5.2 sources<br />
+<a href="http://www.lua.org/source/5.2/">http://www.lua.org/source/5.2/</a>
+</li>
+
+<li>REPL<br />
+<a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop</a>
+</li>
+
+<li>The LLVM Compiler Infrastructure<br />
+<a href="http://llvm.org/ProjectsWithLLVM/">http://llvm.org/ProjectsWithLLVM/</a>
+</li>
+
+<li>clang: a C language family frontend for LLVM<br />
+<a href="http://clang.llvm.org/">http://clang.llvm.org/</a>
+</li>
+
+<li>LLVM Backend ("Fastcomp")<br />
+<a href="http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend">http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend</a>
+</li>
+
+<li>Lambda the Ultimate: Coroutines in Lua,<br />
+<a href="http://lambda-the-ultimate.org/node/438">http://lambda-the-ultimate.org/node/438</a>
+</li>
+
+<li>Coroutines Tutorial,<br />
+<a href="http://lua-users.org/wiki/CoroutinesTutorial">http://lua-users.org/wiki/CoroutinesTutorial</a>
+</li>
+
+<li>Lua Coroutines Versus Python Generators,<br />
+<a href="http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators">http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2017</small></p>
+</body>
+</html>
+

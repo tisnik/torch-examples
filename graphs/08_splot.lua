@@ -19,7 +19,7 @@ v = v - 12
 m = v:resize(GRID, GRID)
 m = torch.sin(m*4.0*math.pi/90.0/GRID)
 
-gnuplot.pngfigure("plot7.png")
+gnuplot.pngfigure("plot8.png")
 gnuplot.title("splot")
 gnuplot.splot(m)
 gnuplot.plotflush()

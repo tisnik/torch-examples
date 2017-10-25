@@ -15,7 +15,7 @@ require("gnuplot")
 x = torch.range(0, 360, 10)
 y = torch.sin(x/180.0*math.pi)
 
-gnuplot.pngfigure("plot6.png")
+gnuplot.pngfigure("plot7.png")
 gnuplot.title("sin x")
 gnuplot.bar(x, y)
 gnuplot.plotflush()

@@ -16,7 +16,7 @@ x = torch.range(0, 360, 5)
 y1 = torch.sin(x/180.0*math.pi)
 y2 = torch.cos(x/180.0*math.pi)
 
-gnuplot.svgfigure("plot5.svg")
+gnuplot.svgfigure("plot6.svg")
 gnuplot.title("sin x and cos x")
 gnuplot.xlabel("x")
 gnuplot.ylabel("sin x, cos x")

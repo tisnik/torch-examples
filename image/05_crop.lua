@@ -49,12 +49,25 @@ image2 = image.load(image_name, 1)
 image1crop = image.crop(image1, 200, 150, 400, 350)
 image2crop = image.crop(image2, 200, 150, 400, 350)
 
-image.save("cropped1.png", image1crop)
-image.save("cropped2.png", image2crop)
+print_image_info(image1crop)
+print_image_info(image2crop)
 
-image1cropCenter = image.crop(image1, "c", 200, 100)
-image2cropCenter = image.crop(image2, "c", 200, 100)
+image.save("cropped1box.png", image1crop)
+image.save("cropped2box.png", image2crop)
 
-image.save("cropped1center.png", image1cropCenter)
-image.save("cropped2center.png", image2cropCenter)
+
+function cropAndSaveImage(source, format, width, height, order)
+    croppedImage = image.crop(source, format, width, height)
+    filename = "cropped" .. order .. format .. ".png"
+    print(filename)
+    print_image_info(croppedImage)
+    image.save(filename, croppedImage)
+end
+
+formats = {"c", "tl", "tr", "bl", "br"}
+
+for _, format in ipairs(formats) do
+    cropAndSaveImage(image1, format, 250, 150, 1)
+    cropAndSaveImage(image2, format, 250, 150, 2)
+end
 

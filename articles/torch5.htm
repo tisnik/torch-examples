@@ -1,0 +1,958 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Framework Torch: modul pro zpracování rastrových obrázků</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Framework Torch: modul pro zpracování rastrových obrázků</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V&nbsp;páté části seriálu o frameworku Torch se seznámíme se základními možnostmi nabízenými modulem image. V&nbsp;tomto modulu nalezneme poměrně velké množství podpůrných funkcí určených pro zpracování rastrových obrázků, které v&nbsp;mnoha aplikacích tvoří vstup do neuronových sítí.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Framework Torch: modul pro zpracování rastrových obrázků</a></p>
+<p><a href="#k02">2. Reprezentace rastrových obrázků v&nbsp;knihovně Torch</a></p>
+<p><a href="#k03">*** 3. Vytvoření obrázku ve stupních šedi z&nbsp;běžného 2D tenzoru</a></p>
+<p><a href="#k04">*** 4. Vytvoření RGB obrázku z&nbsp;3D tenzoru</a></p>
+<p><a href="#k05">*** 5. Načtení obrázku z&nbsp;externího souboru</a></p>
+<p><a href="#k06">*** 6. Standardní testovací obrázky aneb &bdquo;kam se poděla Lenna?&ldquo;</a></p>
+<p><a href="#k07">*** 7. Počet dimenzí a rozměry tenzoru s&nbsp;obrázkem</a></p>
+<p><a href="#k08">*** 8. Specifikace počtu barvových kanálů a typu komponent tenzoru při načtení obrázku</a></p>
+<p><a href="#k09">9. Základní operace (transformace) nad obrázkem</a></p>
+<p><a href="#k10">*** 10. Ořezání rastrového obrázku</a></p>
+<p><a href="#k11">*** 11. Posun pixelů</a></p>
+<p><a href="#k12">*** 12. Horizontální a vertikální zrcadlení</a></p>
+<p><a href="#k13">*** 13. Změna měřítka a volba aplikovaného filtru při výpočtu nového obrázku</a></p>
+<p><a href="#k14">*** 14. Rotace obrázku</a></p>
+<p><a href="#k15">*** 15. Význam konvolučních filtrů při práci s&nbsp;rastrovým obrazem</a></p>
+<p><a href="#k16">*** 16. Příklady jednoduchých 2D konvolučních filtrů</a></p>
+<p><a href="#k17">*** 17. Reprezentace jádra filtru a aplikace konvolučních filtrů v&nbsp;knihovně Torch</a></p>
+<p><a href="#k18">*** 18. Demonstrační příklad &ndash; použití konvolučních filtrů</a></p>
+<p><a href="#k19">*** 19. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k20">20. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Framework Torch: modul pro zpracování rastrových obrázků</h2>
+
+<p>Ve frameworku <i>Torch</i> mají uživatelé k&nbsp;dispozici modul nazvaný
+<strong>image</strong>. Tento modul obsahuje funkce, které mohou být použity
+při zpracování rastrových obrazů, což je užitečné, protože právě rastrové
+obrázky se zpracovávají v&nbsp;mnoha aplikacích neuronových sítí, což znamená,
+že bývá nutné vstupní obrázky vhodným způsobem upravit. Interně jsou sice
+obrázky reprezentovány jako běžné tenzory (buď dvourozměrné či trojrozměrné),
+ovšem modul <strong>image</strong> nabízí specializované funkce určené
+například pro načítání a ukládání obrázků z a do známých souborových formátů,
+zejména pak do formátu <a
+href="https://www.root.cz/clanky/png-is-not-gif/">PNG</a> (<i>Portable Network
+Graphics</i>), <a
+href="https://www.root.cz/clanky/jpeg-kral-rastrovych-grafickych-formatu/">JPEG</a>,
+<a
+href="https://www.root.cz/clanky/graficke-formaty-ve-znameni-unixu/#k06">PPM</a>
+(<i>Portable PixelMap</i>) a taktéž do formátu <a
+href="https://www.root.cz/clanky/graficke-formaty-ve-znameni-unixu/#k04">PGM</a>
+(<i>Portable GrayMap</i>). Mezi další nabízené funkce patří zejména aplikace
+různých transformací (posun, zvětšení, zmenšení, rotace) obrazové informace a
+v&nbsp;neposlední řadě aplikace konvolučních filtrů, například za účelem
+detekce hran, zaostření obrázku či naopak pro odstranění šumu.</p>
+
+<p>Kromě výše zmíněných operací nalezneme v&nbsp;modulu <strong>image</strong>
+i další funkce, které například umožňují konverzi hodnot pixelů při přechodu do
+jiného barvového prostoru (<a href="https://cs.wikipedia.org/wiki/RGB">RGB</a>,
+<a href="https://cs.wikipedia.org/wiki/YUV">YUV</a>, <a
+href="https://cs.wikipedia.org/wiki/HSV">HSL</a> a <a
+href="https://cs.wikipedia.org/wiki/Lab">CIEL*a*b</a>). Taktéž je možné
+s&nbsp;využitím specializovaných konstruktorů vytvořit testovací obrázky (ovšem
+s&nbsp;omezeními, které si popíšeme <a href="#k06">v&nbsp;šesté kapitole</a>) a
+konvoluční filtry s&nbsp;předem specifikovanými vlastnostmi (není tedy nutné
+ručně konstruovat jádro filtru). Mezi další operace, které mohou být užitečné,
+zejména pro výstupní rastrové obrázky, patří možnost přikreslit do obrázku
+obdélník nebo textový řetězec. Tyto funkce se mohou hodit například ve chvíli,
+kdy je neuronovou sítí v&nbsp;obrázku nalezen hledaný objekt, který je
+zapotřebí zvýraznit a nějak popsat.</p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Reprezentace rastrových obrázků v&nbsp;knihovně Torch</h2>
+
+<p>Digitální rastrový obraz je představován obrazovými elementy (picture
+elements &ndash; <i>pixels</i>), které bývají uspořádány do určité vzorkovací
+mřížky. V&nbsp;dalším textu budeme uvažovat zdaleka nejpoužívanější čtvercovou
+nebo obdélníkovou mřížku, i když jsou ve skutečnosti možné i další varianty
+zmíněné v&nbsp;následujícím textu. Taková pravidelná mřížka je vlastně maticí,
+jejíž prvky odpovídají kvantovacím úrovním jasové či barvové funkce.
+Nejjednodušší reprezentací obrazových dat v&nbsp;paměti počítače je
+dvojrozměrná mřížka bodů. Každý bod mřížky odpovídá definičnímu oboru diskrétní
+obrazové funkce <i>I(x, y)</i> a příslušná hodnota pixelu (tj.&nbsp;jeho jas)
+hodnotě této funkce v&nbsp;daném bodě. Plošné uspořádání bodů může mít podobu
+buď čtvercové, hexagonální, trojúhelníkové, nebo i jiné mřížky. Technicky i
+programově se nejsnadněji realizuje čtvercová mřížka, i když pro účely filtrace
+je mnohdy výhodnější mřížka hexagonální (ta je použita v&nbsp;některých
+digitálních fotoaparátech).</p>
+
+<p>Obrazová informace může být v&nbsp;mřížce uložena buď přímo hodnotou jasu
+(monochromatické obrázky), hodnotami barvových složek RGB, nebo indexem do
+barvové palety (<i>LUT &ndash; Look-up table</i>). Pokud by byl barevný
+rastrový obrázek s&nbsp;barvami ležícími v&nbsp;prostoru RGB takto
+reprezentován, vypadalo by to při zápisu v&nbsp;jazyka Lua zhruba
+následovně:</p>
+
+<pre>
+{
+    {{R, G, B}, {R, G, B}, {R, G, B}, ...},    -- první řádek bitmapy
+    {{R, G, B}, {R, G, B}, {R, G, B}, ...},    -- druhý řádek bitmapy
+    {{R, G, B}, {R, G, B}, {R, G, B}, ...},    -- třetí řádek bitmapy
+    {{R, G, B}, {R, G, B}, {R, G, B}, ...},    -- čtvrtý řádek bitmapy
+    ...
+    ...
+    ...
+}
+</pre>
+
+<p>Ve frameworku <i>Torch</i>, ale i v&nbsp;některých dalších knihovnách, se
+však používá opačný přístup: namísto 2D pole (mřížky) obsahujícího trojici
+barvových složek RGB se používá trojice stejně velkých mřížek spojená do 3D
+pole. Nejvyšší dimenze pak odpovídá barvové složce, samotné 2D mřížky pak již
+obsahují skalární hodnoty s&nbsp;intenzitami dané barvové složky pro všechny
+pixely:</p>
+
+<pre>
+{
+    {   -- matice pro modré složky pixelů
+        {p1, p2, p3, p4, p5, p6, ...},    -- první řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- druhý řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- třetí řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- čtvrtý řádek bitmapy
+        ...
+        ...
+        ...
+    },
+    {   -- matice pro zelené složky pixelů
+        {p1, p2, p3, p4, p5, p6, ...},    -- první řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- druhý řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- třetí řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- čtvrtý řádek bitmapy
+        ...
+        ...
+        ...
+    },
+    {   -- matice pro modré složky pixelů
+        {p1, p2, p3, p4, p5, p6, ...},    -- první řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- druhý řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- třetí řádek bitmapy
+        {p1, p2, p3, p4, p5, p6, ...},    -- čtvrtý řádek bitmapy
+        ...
+        ...
+        ...
+    }
+}
+</pre>
+
+<p>Velmi často se pracuje s&nbsp;monochromatickými obrazy, u nichž je způsob
+uložení ještě jednodušší, než u plnobarevných obrazů. V&nbsp;tomto případě se
+totiž skutečně jedná o &bdquo;pouhou&ldquo; 2D matici hodnot, tj.&nbsp;chybí
+nejvyšší dimenze:</p>
+
+<pre>
+{   -- matice intenzit pixelů
+    {p1, p2, p3, p4, p5, p6, ...},    -- první řádek bitmapy
+    {p1, p2, p3, p4, p5, p6, ...},    -- druhý řádek bitmapy
+    {p1, p2, p3, p4, p5, p6, ...},    -- třetí řádek bitmapy
+    {p1, p2, p3, p4, p5, p6, ...},    -- čtvrtý řádek bitmapy
+    ...
+    ...
+    ...
+}
+</pre>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Vytvoření obrázku ve stupních šedi z&nbsp;běžného 2D tenzoru</h2>
+
+<pre>
+require("image")
+</pre>
+
+<pre>
+function createImageWithGrid(size, grid)
+    img=torch.Tensor(SIZE, SIZE)
+    img:fill(255)
+&nbsp;
+    for row = 1, SIZE, GRID do
+        img:narrow(1, row, 1):zero()
+    end
+&nbsp;
+    for column = 1, SIZE, GRID do
+        img:narrow(2, column, 1):zero()
+    end
+&nbsp;
+    return img
+end
+</pre>
+
+<pre>
+img = createImageWithGrid(SIZE, GRID)
+
+image.save("grid.png", img)
+</pre>
+
+*** image ***
+<p><i>Obrázek 1: Rastrový obrázek vygenerovaný funkcí
+<strong>createImageWithGrid</strong>.</i></p>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Vytvoření RGB obrázku z&nbsp;3D tenzoru</h2>
+
+<pre>
+function createRGBImage(size)
+    img = torch.Tensor(3, size, size)
+&nbsp;
+    line = torch.linspace(0, 1, size)
+&nbsp;
+    red = line:repeatTensor(size):reshape(size, size)
+    green = torch.zeros(size, size)
+    blue = red:transpose(1, 2)
+&nbsp;
+    img[1] = red
+    img[2] = green
+    img[3] = blue
+&nbsp;
+    return img
+end
+</pre>
+
+<pre>
+img2 = createRGBImage(SIZE)
+&nbsp;
+image.save("rgb.png", img2)
+</pre>
+
+*** image ***
+<p><i>Obrázek 2: Rastrový obrázek vygenerovaný funkcí
+<strong>createRGBImage</strong>.</i></p>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Načtení obrázku z&nbsp;externího souboru</h2>
+
+<pre>
+require("image")
+&nbsp;
+&nbsp;
+original_image_address = "https://upload.wikimedia.org/wikipedia/en/2/24/Lenna.png"
+image_name = "lenna.png"
+&nbsp;
+&nbsp;
+function file_exists(filename)
+    local fin = io.open(filename,"r")
+    if fin then
+        io.close(fin)
+        return true
+    else
+        return false
+    end
+end
+&nbsp;
+&nbsp;
+function download_file(address, filename)
+    local command = "wget -v -O " .. filename .. " " .. address
+    os.execute(command)
+end
+&nbsp;
+&nbsp;
+function setup(address, filename)
+    if not file_exists(filename) then
+        download_file(original_image_address, filename)
+    end
+end
+&nbsp;
+&nbsp;
+setup(original_image_address, image_name)
+</pre>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Standardní testovací obrázky aneb &bdquo;kam se poděla Lenna?&ldquo;</h2>
+
+<pre>
+</pre>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Počet dimenzí a rozměry tenzoru s&nbsp;obrázkem</h2>
+
+<pre>
+print(image.getSize(image_name))
+</pre>
+
+<pre>
+function print_image_info(img)
+    print("Element type:")
+    print(img:type())
+&nbsp;
+    print("Dimensions:")
+    print(img:dim())
+&nbsp;
+    print("Tensor shape:")
+    print(img:size())
+end
+</pre>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Specifikace počtu barvových kanálů a typu komponent tenzoru při načtení obrázku</h2>
+
+<pre>
+image1 = image.load(image_name)
+image2 = image.load(image_name, 1)
+image3 = image.load(image_name, 1, 'byte')
+&nbsp;
+print_image_info(image1)
+print_image_info(image2)
+print_image_info(image3)
+</pre>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Základní operace (transformace) nad obrázkem</h2>
+
+<p>Nad obsahem obrázku, tedy nad maticemi s&nbsp;údaji o jednotlivých pixelech,
+je možné provádět různé transformace. Základní operací je uřezání obrázku
+funkcí <strong>crop</strong>, která vrací nový obrázek s&nbsp;odlišným
+rozlišením (velikostí). Velikost obrázku se obecně mění i operací
+<strong>scale</strong>. Další podporované operace, zejména posun pixelů,
+zrcadlení obrázku ve svislé či vodorovné rovině a rotace obrázku, již
+implicitně velikost obrázku nemění, což si ukážeme na demonstračních
+příkladech. Všechny základní transformace podporované modulem
+<strong>image</strong> jsou vypsány v&nbsp;následující tabulce:</p>
+
+<table>
+<tr><th>Funkce</th><th>Kapitola</th><th>Význam</th></tr>
+<tr><td>image.crop</td><td><a href="#k09">9</a></td><td>ořezání obrázku osově orientovaným obdélníkem</td></tr>
+<tr><td>image.translate</td><td><a href="#k10">10</a></td><td>posun všech pixelů v&nbsp;obrázku zadaným směrem</td></tr>
+<tr><td>image.hflip</td><td><a href="#k11">11</a></td><td>horizontální zrcadlení (okolo osy y)</td></tr>
+<tr><td>image.vflip</td><td><a href="#k11">11</a></td><td>vertikální zrcadlení (okolo osy x)</td></tr>
+<tr><td>image.flip</td><td><a href="#k11">11</a></td><td>zrcadlení okolo zvolené osy či dokonce &bdquo;rotace&ldquo; barev</td></tr>
+<tr><td>image.scale</td><td><a href="#k12">12</a></td><td>zvětšení či zmenšení obrázku se specifikací rozlišení výsledku</td></tr>
+<tr><td>image.rotate</td><td><a href="#k13">13</a></td><td>rotace obsahu obrázku se zachování jeho původního rozlišení</td></tr>
+</table>
+
+<p>Všechny operace jako svůj první volitelný parametr akceptují tenzor, do
+něhož se má uložit výsledek. Pokud tento parametr nepoužijeme, budou se všechny
+funkce chovat jako skutečné funkce, tj.&nbsp;výsledkem bude nový tenzor
+(návratová hodnota). Záleží jen na programátorovi, který způsob volání použije
+&ndash; buď &bdquo;funkcionální&ldquo; (obecně větší spotřeba paměti) či
+procedurální.</p>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Ořezání rastrového obrázku</h2>
+
+<pre>
+image1 = image.load(image_name)
+image2 = image.load(image_name, 1)
+&nbsp;
+image1crop = image.crop(image1, 200, 150, 400, 350)
+image2crop = image.crop(image2, 200, 150, 400, 350)
+&nbsp;
+print_image_info(image1crop)
+print_image_info(image2crop)
+&nbsp;
+image.save("cropped1box.png", image1crop)
+image.save("cropped2box.png", image2crop)
+</pre>
+
+<pre>
+function cropAndSaveImage(source, format, width, height, order)
+    croppedImage = image.crop(source, format, width, height)
+    filename = "cropped" .. order .. format .. ".png"
+    print(filename)
+    print_image_info(croppedImage)
+    image.save(filename, croppedImage)
+end
+&nbsp;
+formats = {"c", "tl", "tr", "bl", "br"}
+&nbsp;
+for _, format in ipairs(formats) do
+    cropAndSaveImage(image1, format, 250, 150, 1)
+    cropAndSaveImage(image2, format, 250, 150, 2)
+end
+</pre>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Posun pixelů</h2>
+
+<pre>
+lenna = image.load(image_name)
+&nbsp;
+translated = image.translate(lenna, 64, 64)
+image.save("translated.png", translated)
+&nbsp;
+translated_back = image.translate(translated, -32, -32)
+image.save("translated_back.png", translated_back)
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Horizontální a vertikální zrcadlení</h2>
+
+<pre>
+lenna = image.load(image_name)
+&nbsp;
+hflip = image.hflip(lenna)
+image.save("horizontal_flip.png", hflip)
+&nbsp;
+vflip = image.vflip(lenna)
+image.save("vertical_flip.png", vflip)
+&nbsp;
+flip_d1 = image.flip(lenna, 1)
+image.save("flip_dimension1.png", flip_d1)
+&nbsp;
+flip_d2 = image.flip(lenna, 2)
+image.save("flip_dimension2.png", flip_d2)
+&nbsp;
+flip_d3 = image.flip(lenna, 3)
+image.save("flip_dimension3.png", flip_d3)
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Změna měřítka a volba aplikovaného filtru při výpočtu nového obrázku</h2>
+
+<pre>
+lenna = image.load(image_name)
+&nbsp;
+cropped = image.crop(lenna, "c", 100, 66)
+&nbsp;
+scaled_simple = image.scale(cropped, 600, 400, "simple")
+scaled_bilinear = image.scale(cropped, 600, 400, "bilinear")
+scaled_bicubic = image.scale(cropped, 600, 400, "bicubic")
+&nbsp;
+print_image_info(scaled_simple)
+print_image_info(scaled_bilinear)
+print_image_info(scaled_bicubic)
+&nbsp;
+image.save("scaled_simple.png", scaled_simple)
+image.save("scaled_bilinear.png", scaled_bilinear)
+image.save("scaled_bicubic.png", scaled_bicubic)
+&nbsp;
+grid = createImageWithGrid(SIZE, GRID)
+&nbsp;
+croppedGrid = image.crop(grid, "c", SIZE/4, SIZE/4)
+&nbsp;
+scaled_simple = image.scale(croppedGrid, SIZE, SIZE, "simple")
+scaled_bilinear = image.scale(croppedGrid, SIZE, SIZE, "bilinear")
+scaled_bicubic = image.scale(croppedGrid, SIZE, SIZE, "bicubic")
+&nbsp;
+image.save("grid_scaled_simple.png", scaled_simple)
+image.save("grid_scaled_bilinear.png", scaled_bilinear)
+image.save("grid_scaled_bicubic.png", scaled_bicubic)
+</pre>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Rotace obrázku</h2>
+
+<pre>
+lenna = image.load(image_name)
+&nbsp;
+angle5 = math.rad(5)
+angle45 = math.rad(45)
+&nbsp;
+rotated5_simple = image.rotate(lenna, angle5, "simple")
+rotated5_bilinear = image.rotate(lenna, angle5, "bilinear")
+&nbsp;
+rotated45_simple = image.rotate(lenna, angle45, "simple")
+rotated45_bilinear = image.rotate(lenna, angle45, "bilinear")
+&nbsp;
+image.save("rotated5_simple.png", rotated5_simple)
+image.save("rotated5_bilinear.png", rotated5_bilinear)
+&nbsp;
+image.save("rotated45_simple.png", rotated45_simple)
+image.save("rotated45_bilinear.png", rotated45_bilinear)
+&nbsp;
+grid = createImageWithGrid(SIZE, GRID)
+&nbsp;
+rotated5_simple = image.rotate(grid, angle5, "simple")
+rotated5_bilinear = image.rotate(grid, angle5, "bilinear")
+&nbsp;
+rotated45_simple = image.rotate(grid, angle45, "simple")
+rotated45_bilinear = image.rotate(grid, angle45, "bilinear")
+&nbsp;
+image.save("grid_rotated5_simple.png", rotated5_simple)
+image.save("grid_rotated5_bilinear.png", rotated5_bilinear)
+&nbsp;
+image.save("grid_rotated45_simple.png", rotated45_simple)
+image.save("grid_rotated45_bilinear.png", rotated45_bilinear)
+</pre>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Význam konvolučních filtrů při práci s&nbsp;rastrovým obrazem</h2>
+
+<p>Pod pojmem filtrace si můžeme představit soubor lokálních transformací rastrového obrazu, kterými se v&nbsp;případě monochromatických obrazů převádí hodnoty jasu původního obrazu na nové hodnoty jasu obrazu výstupního. Barevný obraz si můžeme pro účely filtrace představit jako tři monochromatické obrazy, z&nbsp;nichž každý obsahuje jas jedné barvové složky (povšimněte si, že to přesně odpovídá způsobu uložení barevných obrázků ve frameworku <i>Torch</i>). Podle vlastností funkčního vztahu pro výpočet jasu výsledného okolí na základě okolí O ve vstupním obrazu můžeme rozdělit metody filtrace na lineární a nelineární.</p>
+
+<p>Lineární operace vyjadřují výslednou hodnotu jasu jako konvoluci okolí O příslušného bodu (i, j) a takzvaného konvolučního jádra (<i>kernel</i>). Mezi postupy předzpracování obrazu patří i algoritmy obnovení, které se obvykle také vyjadřují ve formě konvoluce. Okolím O, které se používá k&nbsp;výpočtu, je ale celý obraz. Jedná se tedy o výpočetně velmi náročnou operaci. Obnovení se používá pro odstranění poruch s&nbsp;předem známými vlastnostmi jako například rozostření objektivu nebo rozmazání vlivem pohybu při snímání.</p>
+
+<p>V&nbsp;dalším textu se však budeme zabývat pouze velmi jednoduchými konvolučními filtry, které pracují nad poměrně malým okolím zpracovávaných pixelů. Velikost konvolučního jádra určuje i velikost zpracovávaného okolí.</p>
+
+Nejpoužívanějším konvolučním filtrem je při práci s rastrovými obrazy bezesporu dvojdimenzionální konvoluční filtr. Jeho užitečnost spočívá především ve velkých možnostech změny rastrového obrazu, které přesahují možnosti jednodimenzionálních filtrů. Pomocí dvojdimenzionálních konvolučních filtrů je možné provádět ostření obrazu, rozmazávání, zvýrazňování hran nebo tvorbu reliéfů (vytlačeného vzoru) ze zadaného rastrového obrazu.
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Příklady jednoduchých 2D konvolučních filtrů</h2>
+
+<p>Obyčejné průměrování filtruje obraz tím, že nová hodnota jasu se spočítá
+jako aritmetický průměr jasu čtvercového nebo (méně často) obdélníkového okolí.
+Velikost skvrn šumu by měla být menší než velikost okolí a to by mělo být menší
+než nejmenší významný detail v&nbsp;obrazu, což je sice pěkná teorie, ovšem
+těžko dosažitelná. Vždy ale dojde k&nbsp;rozmazání hran.</p>
+
+<p>Konvoluční jádro filtru velikosti 3&times;3 pro obyčejné průměrování má
+tvar:</p>
+
+<pre>
+   1 |1 1 1|
+h= - |1 1 1|
+   9 |1 1 1|
+</pre>
+
+<p>Jednoduchým rozšířením obyčejného průměrování je průměrování
+s&nbsp;Gaussovským rozložením. Toto rozložení samozřejmě nelze použít bez
+dalších úprav, protože by velikost konvoluční masky byla nekonečná. Proto se
+konvoluční maska filtru vytvoří tak, že se zvýší váhy středového bodu masky
+a/nebo i jeho 4-okolí (tj.&nbsp;bodů, které mají se středovým bodem společnou
+jednu souřadnici, druhá se o jednotku liší). Jedna z&nbsp;možných podob
+konvoluční masky má tvar:</p>
+
+<pre>
+    1 |1 2 1|
+h= -- |2 4 2|
+   16 |1 2 1|
+</pre>
+
+<p>Všimněte si, že součet všech položek konvoluční matice dává po vynásobení
+vahou před maticí výslednou hodnotu 1. To zjednodušeně znamená, že se nemění
+celková světlost obrázku.</p>
+
+<p>Mezi filtry používané pro zvýraznění hran patří Sobelův operátor. Pomocí
+tohoto operátoru jsou aproximovány první parciální derivace 2D funkce
+představované obrazem, jedná se tedy o operátor směrově závislý. Směr se u
+těchto operátorů udává podle světových stran. Sobelův operátor ve směru
+&bdquo;sever&ldquo; má například tvar:</p>
+
+<pre>
+   | 1  2  1|
+h= | 0  0  0|
+   |-1 -2 -1|
+</pre>
+
+<p>Sobelův operátor v&nbsp;jiném směru lze získat rotací této matice.</p>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Reprezentace jádra filtru a aplikace konvolučních filtrů v&nbsp;knihovně Torch</h2>
+
+<pre>
+lenna = image.load(image_name)
+</pre>
+
+<pre>
+kernel = torch.Tensor({{ 1, 1, 1},
+                       { 1, 1, 1},
+                       { 1, 1, 1}})
+</pre>
+
+<pre>
+target_image = image.convolve(source_image, kernel)
+image.save(filename, target_image)
+</pre>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Demonstrační příklad &ndash; použití konvolučních filtrů</h2>
+
+<pre>
+function convoluteAndSaveImage(source_image, kernel, filename)
+    target_image = image.convolve(source_image, kernel)
+    print("Applying the following kernel to create " .. filename)
+    print(kernel)
+    image.save(filename, target_image)
+end
+&nbsp;
+&nbsp;
+setup(original_image_address, image_name)
+&nbsp;
+lenna = image.load(image_name)
+</pre>
+
+<pre>
+kernel = torch.Tensor({{ 1, 1, 1},
+                       { 1, 1, 1},
+                       { 1, 1, 1}})
+&nbsp;
+kernel = kernel / torch.sum(kernel)
+&nbsp;
+convoluteAndSaveImage(lenna, kernel, "box_blur_3x3.png")
+</pre>
+
+<pre>
+kernel = torch.Tensor(5, 5)
+kernel:fill(1)
+&nbsp;
+kernel = kernel / torch.sum(kernel)
+&nbsp;
+convoluteAndSaveImage(lenna, kernel, "box_blur_5x5.png")
+</pre>
+
+<pre>
+kernel = torch.Tensor({{ 1, 2, 1},
+                       { 2, 4, 2},
+                       { 1, 2, 1}})
+&nbsp;
+kernel = kernel / torch.sum(kernel)
+&nbsp;
+convoluteAndSaveImage(lenna, kernel, "gaussian_blur.png")
+</pre>
+
+<pre>
+kernel = torch.Tensor({{ 0,-1, 0},
+                       {-1, 5,-1},
+                       { 0,-1, 0}})
+&nbsp;
+convoluteAndSaveImage(lenna, kernel, "sharpen.png")
+</pre>
+
+<pre>
+kernel = torch.Tensor({{-1,-1,-1},
+                       {-1, 8,-1},
+                       {-1,-1,-1}})
+&nbsp;
+convoluteAndSaveImage(lenna, kernel, "edge_detect.png")
+</pre>
+
+<pre>
+kernel = torch.Tensor({{ 1, 2, 1},
+                       { 0, 0, 0},
+                       {-1,-2,-1}})
+&nbsp;
+convoluteAndSaveImage(lenna, kernel, "sobel.png")
+</pre>
+
+<pre>
+kernel = torch.Tensor({{-1, 1}})
+&nbsp;
+convoluteAndSaveImage(lenna, kernel, "vertical_edge_detect.png")
+</pre>
+
+<pre>
+kernel = torch.Tensor({{-1},
+                       { 1}})
+&nbsp;
+convoluteAndSaveImage(lenna, kernel, "horizontal_edge_detect.png")
+</pre>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p></p>
+
+<table>
+<tr><th>Příklad</th><th>Adresa</th></tr>
+<tr><td>01_image_from_tensor.lua</td><td><a href="01_image_from_tensor.lua">01_image_from_tensor.lua</a></td></tr>
+<tr><td>02_download_image.lua   </td><td><a href="02_download_image.lua   ">02_download_image.lua   </a></td></tr>
+<tr><td>03_image_get_size.lua   </td><td><a href="03_image_get_size.lua   ">03_image_get_size.lua   </a></td></tr>
+<tr><td>04_tensor_type.lua      </td><td><a href="04_tensor_type.lua      ">04_tensor_type.lua      </a></td></tr>
+<tr><td>05_crop.lua             </td><td><a href="05_crop.lua             ">05_crop.lua             </a></td></tr>
+<tr><td>06_translate.lua        </td><td><a href="06_translate.lua        ">06_translate.lua        </a></td></tr>
+<tr><td>07_flip.lua             </td><td><a href="07_flip.lua             ">07_flip.lua             </a></td></tr>
+<tr><td>08_rescale.lua          </td><td><a href="08_rescale.lua          ">08_rescale.lua          </a></td></tr>
+<tr><td>09_rotate.lua           </td><td><a href="09_rotate.lua           ">09_rotate.lua           </a></td></tr>
+<tr><td>10_convolution.lua      </td><td><a href="10_convolution.lua      ">10_convolution.lua      </a></td></tr>
+</table>
+
+
+
+<p><a name="k20"></a></p>
+<h2 id="k20">20. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>Stránka projektu Torch<br />
+<a href="http://torch.ch/">http://torch.ch/</a>
+</li>
+
+<li>Torch: Serialization<br />
+<a href="https://github.com/torch/torch7/blob/master/doc/serialization.md">https://github.com/torch/torch7/blob/master/doc/serialization.md</a>
+</li>
+
+<li>Torch: modul image<br />
+<a href="https://github.com/torch/image/blob/master/README.md">https://github.com/torch/image/blob/master/README.md</a>
+</li>
+
+<li>Torch na GitHubu (několik repositářů)<br />
+<a href="https://github.com/torch">https://github.com/torch</a>
+</li>
+
+<li>Torch (machine learning), Wikipedia<br />
+<a href="https://en.wikipedia.org/wiki/Torch_%28machine_learning%29">https://en.wikipedia.org/wiki/Torch_%28machine_learning%29</a>
+</li>
+
+<li>Torch Package Reference Manual<br />
+<a href="https://github.com/torch/torch7/blob/master/README.md">https://github.com/torch/torch7/blob/master/README.md</a>
+</li>
+
+<li>Torch Cheatsheet<br />
+<a href="https://github.com/torch/torch7/wiki/Cheatsheet">https://github.com/torch/torch7/wiki/Cheatsheet</a>
+</li>
+
+<li>Plotting with Torch7<br />
+<a href="http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/">http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/</a>
+</li>
+
+<li>Plotting Package Manual with Gnuplot<br />
+<a href="https://github.com/torch/gnuplot/blob/master/README.md">https://github.com/torch/gnuplot/blob/master/README.md</a>
+</li>
+
+<li>An Introduction to Tensors<br />
+<a href="https://math.stackexchange.com/questions/10282/an-introduction-to-tensors">https://math.stackexchange.com/questions/10282/an-introduction-to-tensors</a>
+</li>
+
+<li>Differences between a matrix and a tensor<br />
+<a href="https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor">https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor</a>
+</li>
+
+<li>Qualitatively, what is the difference between a matrix and a tensor?<br />
+<a href="https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?">https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?</a>
+</li>
+
+<li>BLAS (Basic Linear Algebra Subprograms)<br />
+<a href="http://www.netlib.org/blas/">http://www.netlib.org/blas/</a>
+</li>
+
+<li>Basic Linear Algebra Subprograms (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms">https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms</a>
+</li>
+
+<li>Comparison of deep learning software<br />
+<a href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software</a>
+</li>
+
+<li>TensorFlow<br />
+<a href="https://www.tensorflow.org/">https://www.tensorflow.org/</a>
+</li>
+
+<li>Caffe2 (A New Lightweight, Modular, and Scalable Deep Learning Framework)<br />
+<a href="https://caffe2.ai/">https://caffe2.ai/</a>
+</li>
+
+<li>PyTorch<br />
+<a href="http://pytorch.org/">http://pytorch.org/</a>
+</li>
+
+<li>Seriál o programovacím jazyku Lua<br />
+<a href="http://www.root.cz/serialy/programovaci-jazyk-lua/">http://www.root.cz/serialy/programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (2)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (3)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (4)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (5 - tabulky a pole)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (6 - překlad programových smyček do mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (7 - dokončení popisu mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (8 - základní vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (9 - další vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (10 - JIT překlad do nativního kódu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (11 - JIT překlad do nativního kódu procesorů s architekturami x86 a ARM)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (12 - překlad operací s reálnými čísly)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/</a>
+</li>
+
+<li>Lua Profiler (GitHub)<br />
+<a href="https://github.com/luaforge/luaprofiler">https://github.com/luaforge/luaprofiler</a>
+</li>
+
+<li>Lua Profiler (LuaForge)<br />
+<a href="http://luaforge.net/projects/luaprofiler/">http://luaforge.net/projects/luaprofiler/</a>
+</li>
+
+<li>ctrace<br />
+<a href="http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</li>
+
+<li>The Lua VM, on the Web<br />
+<a href="https://kripken.github.io/lua.vm.js/lua.vm.js.html">https://kripken.github.io/lua.vm.js/lua.vm.js.html</a>
+</li>
+
+<li>Lua.vm.js REPL<br />
+<a href="https://kripken.github.io/lua.vm.js/repl.html">https://kripken.github.io/lua.vm.js/repl.html</a>
+</li>
+
+<li>lua2js<br />
+<a href="https://www.npmjs.com/package/lua2js">https://www.npmjs.com/package/lua2js</a>
+</li>
+
+<li>lua2js na GitHubu<br />
+<a href="https://github.com/basicer/lua2js-dist">https://github.com/basicer/lua2js-dist</a>
+</li>
+
+<li>Lua (programming language)<br />
+<a href="http://en.wikipedia.org/wiki/Lua_(programming_language)">http://en.wikipedia.org/wiki/Lua_(programming_language)</a>
+</li>
+
+<li>LuaJIT 2.0 SSA IR
+<a href="http://wiki.luajit.org/SSA-IR-2.0">http://wiki.luajit.org/SSA-IR-2.0</a>
+</li>
+
+<li>The LuaJIT Project<br />
+<a href="http://luajit.org/index.html">http://luajit.org/index.html</a>
+</li>
+
+<li>LuaJIT FAQ<br />
+<a href="http://luajit.org/faq.html">http://luajit.org/faq.html</a>
+</li>
+
+<li>LuaJIT Performance Comparison<br />
+<a href="http://luajit.org/performance.html">http://luajit.org/performance.html</a>
+</li>
+
+<li>LuaJIT 2.0 intellectual property disclosure and research opportunities<br />
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908">http://article.gmane.org/gmane.comp.lang.lua.general/58908</a>
+</li>
+
+<li>LuaJIT Wiki<br />
+<a href="http://wiki.luajit.org/Home">http://wiki.luajit.org/Home</a>
+</li>
+
+<li>LuaJIT 2.0 Bytecode Instructions<br />
+<a href="http://wiki.luajit.org/Bytecode-2.0">http://wiki.luajit.org/Bytecode-2.0</a>
+</li>
+
+<li>Programming in Lua (first edition)<br />
+<a href="http://www.lua.org/pil/contents.html">http://www.lua.org/pil/contents.html</a>
+</li>
+
+<li>Lua 5.2 sources<br />
+<a href="http://www.lua.org/source/5.2/">http://www.lua.org/source/5.2/</a>
+</li>
+
+<li>REPL<br />
+<a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop</a>
+</li>
+
+<li>The LLVM Compiler Infrastructure<br />
+<a href="http://llvm.org/ProjectsWithLLVM/">http://llvm.org/ProjectsWithLLVM/</a>
+</li>
+
+<li>clang: a C language family frontend for LLVM<br />
+<a href="http://clang.llvm.org/">http://clang.llvm.org/</a>
+</li>
+
+<li>LLVM Backend ("Fastcomp")<br />
+<a href="http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend">http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend</a>
+</li>
+
+<li>Lambda the Ultimate: Coroutines in Lua,<br />
+<a href="http://lambda-the-ultimate.org/node/438">http://lambda-the-ultimate.org/node/438</a>
+</li>
+
+<li>Coroutines Tutorial,<br />
+<a href="http://lua-users.org/wiki/CoroutinesTutorial">http://lua-users.org/wiki/CoroutinesTutorial</a>
+</li>
+
+<li>Lua Coroutines Versus Python Generators,<br />
+<a href="http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators">http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2017</small></p>
+</body>
+</html>
+

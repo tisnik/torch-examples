@@ -26,11 +26,12 @@ gnuplot.pngfigure("gaussian.png")
 gnuplot.title("Gaussian")
 gnuplot.xlabel("x")
 gnuplot.ylabel("Gaussian")
-gnuplot.raw('unset xtics')
-gnuplot.plot({"sigma=0.1, mean=1/2", y1},
-             {"sigma=0.2, mean=1/2", y2},
-             {"sigma=0.3, mean=1/2", y3},
-             {"sigma=0.1, mean=1/4", y4})
+
+gnuplot.plot({"sigma=0.1, mean=1/2", x, y1},
+             {"sigma=0.2, mean=1/2", x, y2},
+             {"sigma=0.3, mean=1/2", x, y3},
+             {"sigma=0.1, mean=1/4", x, y4})
+
 gnuplot.plotflush()
 gnuplot.close()
 

@@ -22,7 +22,7 @@ y2 = image.gaussian1D(SIZE, 0.2, 1.0, true, 0.5)
 y3 = image.gaussian1D(SIZE, 0.3, 1.0, true, 0.5)
 y4 = image.gaussian1D(SIZE, 0.1, 1.0, true, 0.25)
 
-gnuplot.pngfigure("gaussian.png")
+gnuplot.pngfigure("1d_gaussian.png")
 gnuplot.title("Gaussian")
 gnuplot.xlabel("x")
 gnuplot.ylabel("Gaussian")

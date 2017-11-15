@@ -14,7 +14,8 @@ require("image")
 require("gnuplot")
 
 z1 = image.gaussian(30, 0.1, 1.0, false)
-z2 = image.gaussian(30, 1.1, 1.0, false)
+z2 = image.gaussian(30, 0.25, 1.0, false)
+z3 = image.gaussian(30, 1.1, 1.0, false)
 
 gnuplot.pngfigure("2d_gaussian_1.png")
 gnuplot.imagesc(z1, 'color')
@@ -23,5 +24,10 @@ gnuplot.close()
 
 gnuplot.pngfigure("2d_gaussian_2.png")
 gnuplot.imagesc(z2, 'color')
+gnuplot.plotflush()
+gnuplot.close()
+
+gnuplot.pngfigure("2d_gaussian_3.png")
+gnuplot.imagesc(z3, 'color')
 gnuplot.plotflush()
 gnuplot.close()

@@ -20,7 +20,7 @@ BORDER = 100
 
 
 function createImageWithGrid(size, grid, border)
-    img=torch.Tensor(size, size)
+    local img=torch.Tensor(size, size)
     img:zero()
 
     for row = border, size-border, grid do
@@ -39,12 +39,12 @@ source = createImageWithGrid(SIZE, GRID, BORDER)
 image.save("original_grid.png", source)
 
 for i=1,5 do
-    dilated = image.dilate(source)
+    local dilated = image.dilate(source)
     source = dilated
 end
 
 for i=1,7 do
-    eroded = image.erode(source)
+    local eroded = image.erode(source)
     image.save("eroded" .. i .. ".png", eroded)
     source = eroded
 end

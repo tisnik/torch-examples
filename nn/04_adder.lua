@@ -27,8 +27,8 @@ function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
     local network = nn.Sequential()
 
     network:add(nn.Linear(input_neurons, hidden_neurons))
-    network:add(nn.ReLU())
-    --network:add(nn.Tanh())
+    --network:add(nn.ReLU())
+    network:add(nn.Tanh())
     network:add(nn.Linear(hidden_neurons, output_neurons))
     
     return network
@@ -44,8 +44,8 @@ function train_neural_network(network, training_data, learning_rate, max_iterati
 end
 
 
-function test_neural_network(network, test_data)
-    for i,d in ipairs(test_data) do
+function validate_neural_network(network, validation_data)
+    for i,d in ipairs(validation_data) do
         d1, d2 = d[1], d[2]
         input = torch.Tensor({d1, d2})
         prediction = network:forward(input)[1]
@@ -67,7 +67,7 @@ x=torch.Tensor({0.5, -0.5})
 prediction = network:forward(x)
 print(prediction)
 
-test_data = {
+validation_data = {
     { 1.0,  1,0},
     { 0.5,  0.5},
     { 0.2,  0.2},
@@ -85,5 +85,5 @@ test_data = {
     {-0.2, -0.2},
 }
 
-test_neural_network(network, test_data)
+validate_neural_network(network, validation_data)
 

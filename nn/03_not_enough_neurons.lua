@@ -38,6 +38,7 @@ function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
     network:add(nn.Linear(input_neurons, hidden_neurons))
     network:add(nn.Tanh())
     network:add(nn.Linear(hidden_neurons, output_neurons))
+    network:add(nn.Tanh())
     
     return network
 end

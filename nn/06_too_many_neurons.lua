@@ -1,4 +1,17 @@
+--
+--  (C) Copyright 2017  Pavel Tisnovsky
+--
+--  All rights reserved. This program and the accompanying materials
+--  are made available under the terms of the Eclipse Public License v1.0
+--  which accompanies this distribution, and is available at
+--  http://www.eclipse.org/legal/epl-v10.html
+--
+--  Contributors:
+--      Pavel Tisnovsky
+--
+
 require("nn")
+require("gnuplot")
 
 TRAINING_DATA_SIZE = 500
 
@@ -46,14 +59,51 @@ end
 
 function validate_neural_network(network, validation_data)
     for i,d in ipairs(validation_data) do
-        d1, d2 = d[1], d[2]
-        input = torch.Tensor({d1, d2})
-        prediction = network:forward(input)[1]
-        correct = d1 + d2
-        err = math.abs(100.0 * (prediction-correct)/correct)
-        msg = string.format("%2d  %+6.3f  %+6.3f  %+6.3f  %+6.3f  %4.0f%%", i, d1, d2, correct, prediction, err)
+        local d1, d2 = d[1], d[2]
+        local input = torch.Tensor({d1, d2})
+        local prediction = network:forward(input)[1]
+        local correct = d1 + d2
+        local err = math.abs(100.0 * (prediction-correct)/correct)
+        local msg = string.format("%2d  %+6.3f  %+6.3f  %+6.3f  %+6.3f  %4.0f%%", i, d1, d2, correct, prediction, err)
         print(msg)
     end
+end
+
+
+function plot_graph(filename, x, y1, y2)
+    gnuplot.pngfigure(filename)
+    gnuplot.title("Adder NN")
+    gnuplot.xlabel("x")
+    gnuplot.ylabel("x+y")
+    gnuplot.movelegend("left", "top")
+
+    gnuplot.plot({"correct", x, y1},
+                 {"predict", x, y2})
+
+    gnuplot.plotflush()
+    gnuplot.close()
+end
+
+
+function prepare_graph(filename, from, to, items, d1)
+    local x = torch.linspace(from, to, items)
+    local size = x:size(1)
+
+    local y1 = torch.Tensor(size)
+    local y2 = torch.Tensor(size)
+
+    for i = 1, size do
+        local d2 = x[i]
+        -- presny vysledek
+        y1[i] = d1 + d2
+
+        -- vstup do neuronove site
+        local input = torch.Tensor({d1, d2})
+        -- vysledek odhadnuty neuronovou siti
+        local prediction = network:forward(input)[1]
+        y2[i] = prediction
+    end
+    plot_graph(filename, x, y1, y2)
 end
 
 
@@ -87,3 +137,6 @@ validation_data = {
 
 validate_neural_network(network, validation_data)
 
+prepare_graph("adder_b1.png", -2, 2, 21, 0.5)
+prepare_graph("adder_b2.png", -10, 10, 21, 0.5)
+prepare_graph("adder_b3.png", -2, 2, 21, 2.0)

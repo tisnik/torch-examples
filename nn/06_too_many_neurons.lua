@@ -19,7 +19,7 @@ INPUT_NEURONS = 2
 HIDDEN_NEURONS = 200
 OUTPUT_NEURONS = 1
 
-MAX_ITERATION = 200
+MAX_ITERATION = 500
 LEARNING_RATE = 0.01
 
 
@@ -27,7 +27,7 @@ function prepare_training_data(training_data_size)
     local training_data = {}
     function training_data:size() return training_data_size end
     for i = 1,training_data_size do
-        local input = torch.randn(2)
+        local input = 2*torch.randn(2)
         local output = torch.Tensor(1)
         output[1] = input[1] + input[2]
         training_data[i] = {input, output}
@@ -40,8 +40,8 @@ function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
     local network = nn.Sequential()
 
     network:add(nn.Linear(input_neurons, hidden_neurons))
-    network:add(nn.ReLU())
-    --network:add(nn.Tanh())
+    --network:add(nn.ReLU())
+    network:add(nn.Tanh())
     network:add(nn.Linear(hidden_neurons, output_neurons))
     
     return network
@@ -140,3 +140,4 @@ validate_neural_network(network, validation_data)
 prepare_graph("adder_b1.png", -2, 2, 21, 0.5)
 prepare_graph("adder_b2.png", -10, 10, 21, 0.5)
 prepare_graph("adder_b3.png", -2, 2, 21, 2.0)
+prepare_graph("adder_b4.png", -2, 2, 21, 5.0)

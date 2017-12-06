@@ -18,7 +18,7 @@ GRID = 16
 
 
 function createImageWithGrid(size, grid)
-    img=torch.Tensor(SIZE, SIZE)
+    local img=torch.Tensor(SIZE, SIZE)
     img:fill(255)
 
     for row = 1, SIZE, GRID do
@@ -34,13 +34,13 @@ end
 
 
 function createRGBImage(size)
-    img = torch.Tensor(3, size, size)
+    local img = torch.Tensor(3, size, size)
 
-    line = torch.linspace(0, 1, size)
+    local line = torch.linspace(0, 1, size)
 
-    red = line:repeatTensor(size):reshape(size, size)
-    green = torch.zeros(size, size)
-    blue = red:transpose(1, 2)
+    local red = line:repeatTensor(size):reshape(size, size)
+    local green = torch.zeros(size, size)
+    local blue = red:transpose(1, 2)
 
     img[1] = red
     img[2] = green

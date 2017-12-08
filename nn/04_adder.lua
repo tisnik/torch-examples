@@ -46,12 +46,12 @@ end
 
 function validate_neural_network(network, validation_data)
     for i,d in ipairs(validation_data) do
-        d1, d2 = d[1], d[2]
-        input = torch.Tensor({d1, d2})
-        prediction = network:forward(input)[1]
-        correct = d1 + d2
-        err = math.abs(100.0 * (prediction-correct)/correct)
-        msg = string.format("%2d  %+6.3f  %+6.3f  %+6.3f  %+6.3f  %4.0f%%", i, d1, d2, correct, prediction, err)
+        local d1, d2 = d[1], d[2]
+        local input = torch.Tensor({d1, d2})
+        local prediction = network:forward(input)[1]
+        local correct = d1 + d2
+        local err = math.abs(100.0 * (prediction-correct)/correct)
+        local msg = string.format("%2d  %+6.3f  %+6.3f  %+6.3f  %+6.3f  %4.0f%%", i, d1, d2, correct, prediction, err)
         print(msg)
     end
 end

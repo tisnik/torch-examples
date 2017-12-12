@@ -18,7 +18,7 @@ function generate_image(filename, digit, noise_amount)
     if digit < 0 or digit > 9 then
         return
     end
-    codes = digits[digit+1]
+    local codes = digits[digit+1]
 
     local fout = io.open(filename, "w")
     if not fout then

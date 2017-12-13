@@ -1,4 +1,4 @@
-NOISE_VARIANCE = {0, 10, 20, 50, 100, 200}
+NOISE_VARIANCES = {0, 10, 20, 50, 100, 200}
 JITTER_VARIANCE = {0, 1, 2}
 REPEAT_COUNT = 3
 
@@ -159,7 +159,7 @@ end
 
 
 function generate_training_images()
-    for _, variance in ipairs(NOISE_VARIANCE) do
+    for _, variance in ipairs(NOISE_VARIANCES) do
         for digit = 0, 9 do
             for i = 1, REPEAT_COUNT do
                 local image = generate_image(digit, SCALE, 64, 192)
@@ -171,12 +171,12 @@ function generate_training_images()
     end
 end
 
-NOISE_VARIANCE = {20, 50, 100, 200}
+NOISE_VARIANCES = {20, 50, 100, 200}
 JITTER_VARIANCE = {0, 1, 2}
 REPEAT_COUNT = 2
 
 function generate_images_for_validation()
-    for _, noise_variance in ipairs(NOISE_VARIANCE) do
+    for _, noise_variance in ipairs(NOISE_VARIANCES) do
         for _, jitter_variance in ipairs(JITTER_VARIANCE) do
             for digit = 0, 9 do
                 for i = 1, REPEAT_COUNT do

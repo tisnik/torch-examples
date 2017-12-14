@@ -171,6 +171,8 @@ function generate_training_images()
     end
 end
 
+generate_training_images()
+
 NOISE_VARIANCES = {20, 50, 100, 200}
 JITTER_VARIANCE = {0, 1, 2}
 REPEAT_COUNT = 2
@@ -191,5 +193,4 @@ function generate_images_for_validation()
     end
 end
 
-generate_training_images()
 generate_images_for_validation()

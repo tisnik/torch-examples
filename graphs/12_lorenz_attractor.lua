@@ -14,9 +14,9 @@ require("gnuplot")
 
 -- funkce pro výpočet dalšího bodu Lorenzova atraktoru
 function lorenz(x, y, z, s, r, b)
-    x_dot = s*(y - x)
-    y_dot = r*x - y - x*z
-    z_dot = x*y - b*z
+    local x_dot = s*(y - x)
+    local y_dot = r*x - y - x*z
+    local z_dot = x*y - b*z
     return x_dot, y_dot, z_dot
 end
 
@@ -36,7 +36,7 @@ x[1], y[1], z[1] = 0., 1., 1.05
 
 -- vlastní výpočet atraktoru
 for i=1, n-1 do
-    x_dot, y_dot, z_dot = lorenz(x[i], y[i], z[i], 10, 28, 2.667)
+    local x_dot, y_dot, z_dot = lorenz(x[i], y[i], z[i], 10, 28, 2.667)
     x[i+1] = x[i] + x_dot * dt
     y[i+1] = y[i] + y_dot * dt
     z[i+1] = z[i] + z_dot * dt

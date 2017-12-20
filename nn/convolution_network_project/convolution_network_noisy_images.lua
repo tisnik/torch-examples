@@ -39,7 +39,7 @@ POOLING_SIZE = 2
 POOLING_STEP = 2
 
 -- parametry pro uceni neuronove site
-MAX_ITERATION = 20
+MAX_ITERATION = 200
 LEARNING_RATE = 0.01
 
 -- dalsi parametry
@@ -66,8 +66,21 @@ validate_neural_network_using_noise_images(network, SCALE, 1000, BLACK_LEVEL, WH
 validate_neural_network_using_noise_images(network, SCALE, 2500, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
 validate_neural_network_using_noise_images(network, SCALE, 5000, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
 
+os.exit(1)
+
 for digit = 0, 9 do
     print("splot for digit " .. digit)
     validate_neural_network_variable_noise(network, SCALE, digit, BLACK_LEVEL, WHITE_LEVEL)
+end
+
+validate_neural_network_using_jittered_images(network, SCALE, 1, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
+validate_neural_network_using_jittered_images(network, SCALE, 2, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
+validate_neural_network_using_jittered_images(network, SCALE, 5, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
+validate_neural_network_using_jittered_images(network, SCALE, 10, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
+validate_neural_network_using_jittered_images(network, SCALE, 20, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
+
+for digit = 0, 9 do
+    print("splot for digit " .. digit)
+    validate_neural_network_variable_jitter(network, SCALE, digit, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
 end
 

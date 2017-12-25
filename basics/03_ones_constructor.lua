@@ -10,14 +10,19 @@
 --      Pavel Tisnovsky
 --
 
+
+-- tenzor obsahující jediný prvek nastavený na hodnotu 1
 o0 = torch.ones(1)
 print(o0)
 
+-- tenzor obsahující deset prvků nastavených na hodnotu 1
 o1 = torch.ones(10)
 print(o1)
 
+-- dvourozměrný tenzor 3x4 prvky
 o2 = torch.ones(3,4)
 print(o2)
 
+-- trojrozměrny tenzor 2x3x4 prvky
 o3 = torch.ones(2,3,4)
 print(o3)

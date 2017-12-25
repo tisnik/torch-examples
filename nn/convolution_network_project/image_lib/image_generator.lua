@@ -1,3 +1,16 @@
+--
+--  (C) Copyright 2017  Pavel Tisnovsky
+--
+--  All rights reserved. This program and the accompanying materials
+--  are made available under the terms of the Eclipse Public License v1.0
+--  which accompanies this distribution, and is available at
+--  http://www.eclipse.org/legal/epl-v10.html
+--
+--  Contributors:
+--      Pavel Tisnovsky
+--
+
+
 function generate_training_images(scale, noise_variances, repeat_count, black_level, white_level, export_images)
     local training_images = {}
     for _, noise_variance in ipairs(noise_variances) do

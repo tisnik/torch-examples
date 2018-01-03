@@ -41,7 +41,7 @@ function construct_neural_network(width, height, input_planes, middle_planes,
     -- MIDDLE_PLANES_1 x (vyska - CONVOLUTION_KERNEL_SIZE + 1) x (sirka - CONVOLUTION_KERNEL_SIZE + 1) 
     network:add(nn.SpatialConvolution(input_planes, middle_planes[1], convolution_kernel_size, convolution_kernel_size))
 
-    -- nyni mame mezivysledky 64 x (vyska-5+1) x (sirka-5+1)
+    -- nyni mame mezivysledky MIDDLE_PLANES_1 x (vyska-5+1) x (sirka-5+1)
 
     -- nelinearni funkce
     network:add(nn.Tanh())

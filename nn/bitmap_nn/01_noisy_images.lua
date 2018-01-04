@@ -41,7 +41,7 @@ digits = {
 }
 
 function generate_image_data(digit, noise_amount)
-    codes = digits[digit+1]
+    local codes = digits[digit+1]
 
     local index = 1
     local result = torch.Tensor(8*8)

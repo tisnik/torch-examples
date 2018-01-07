@@ -1,5 +1,5 @@
 --
---  (C) Copyright 2017  Pavel Tisnovsky
+--  (C) Copyright 2017, 2018  Pavel Tisnovsky
 --
 --  All rights reserved. This program and the accompanying materials
 --  are made available under the terms of the Eclipse Public License v1.0
@@ -41,13 +41,13 @@ MAX_ITERATION = 200
 LEARNING_RATE = 0.01
 
 
-function calculate_size_after_convolution(input_size, middle_planes, convolution_kernel_size)
+function calculate_size_after_convolution(input_size, middle_planes, convolution_kernel_size, pooling_size)
     local size = input_size
     for i=1,#middle_planes do
         -- velikost po projiti konvolucni vrstvou
         size = size - convolution_kernel_size + 1
         -- velikost po projiti pooling vrstvou
-        size = size / 2
+        size = size / pooling_size
     end
     return size
 end
@@ -56,8 +56,8 @@ end
 function construct_neural_network()
     local network = nn.Sequential()
 
-    local size_x = calculate_size_after_convolution(WIDTH, MIDDLE_PLANES, CONVOLUTION_KERNEL_SIZE)
-    local size_y = calculate_size_after_convolution(HEIGHT, MIDDLE_PLANES, CONVOLUTION_KERNEL_SIZE)
+    local size_x = calculate_size_after_convolution(WIDTH, MIDDLE_PLANES, CONVOLUTION_KERNEL_SIZE, POOLING_SIZE)
+    local size_y = calculate_size_after_convolution(HEIGHT, MIDDLE_PLANES, CONVOLUTION_KERNEL_SIZE, POOLING_SIZE)
 
     print("Size x: " .. size_x)
     print("Size y: " .. size_y)

@@ -36,7 +36,7 @@ end
 
 function setup(address, filename)
     if not file_exists(filename) then
-        download_file(original_image_address, filename)
+        download_file(address, filename)
     end
 end
 

@@ -1,2 +1,3 @@
 rm *.pgm
+rm *.png
 

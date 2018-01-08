@@ -62,6 +62,8 @@ EXPORT_IMAGES = true
 network = construct_neural_network(WIDTH, HEIGHT, INPUT_PLANES, MIDDLE_PLANES,
                                    HIDDEN_NEURONS, OUTPUT_NEURONS,
                                    CONVOLUTION_KERNEL_SIZE, POOLING_SIZE, POOLING_STEP)
+
+print("Struktura neuronove site")
 print(network)
 
 NOISE_VARIANCES = {0, 10, 20, 50}

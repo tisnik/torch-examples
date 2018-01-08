@@ -42,7 +42,7 @@ digits = {
 
 function generate_image_data(digit, noise_amount, offset_y)
     local max_index = 8*8
-    codes = digits[digit+1]
+    local codes = digits[digit+1]
 
     local index = 1 - 8*offset_y
     local result = torch.zeros(max_index)

@@ -1,0 +1,1 @@
+th cifar_data_classificator.lua

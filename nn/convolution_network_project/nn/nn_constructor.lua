@@ -39,7 +39,8 @@ function construct_neural_network(width, height, input_planes, middle_planes,
     --
     -- vysledkem je 3D tenzor o velikosti:
     -- MIDDLE_PLANES_1 x (vyska - CONVOLUTION_KERNEL_SIZE + 1) x (sirka - CONVOLUTION_KERNEL_SIZE + 1) 
-    network:add(nn.SpatialConvolution(input_planes, middle_planes[1], convolution_kernel_size, convolution_kernel_size))
+    c1 = nn.SpatialConvolution(input_planes, middle_planes[1], convolution_kernel_size, convolution_kernel_size)
+    network:add(c1)
 
     -- nyni mame mezivysledky 64 x (vyska-5+1) x (sirka-5+1)
 
@@ -52,7 +53,8 @@ function construct_neural_network(width, height, input_planes, middle_planes,
 
     -- druha konvolucni vrstva ocekavajici na vstupu 3D tenzor
     -- o velikosti MIDDLE_PLANES_1 x vyska x sirka
-    network:add(nn.SpatialConvolution(middle_planes[1], middle_planes[2], convolution_kernel_size, convolution_kernel_size))
+    c2 = nn.SpatialConvolution(middle_planes[1], middle_planes[2], convolution_kernel_size, convolution_kernel_size)
+    network:add(c2)
 
     -- nelinearni funkce
     network:add(nn.Tanh())
@@ -73,6 +75,6 @@ function construct_neural_network(width, height, input_planes, middle_planes,
     -- bezne vrstvy, jak je jiz zname
     network:add(nn.Linear(hidden_neurons, output_neurons))
 
-    return network
+    return network, c1, c2
 end
 

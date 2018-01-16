@@ -10,13 +10,14 @@
 --      Pavel Tisnovsky
 --
 
-function calculate_size_after_convolution(input_size, middle_planes, convolution_kernel_size)
+
+function calculate_size_after_convolution(input_size, middle_planes, convolution_kernel_size, pooling_size)
     local size = input_size
     for i=1,#middle_planes do
         -- velikost po projiti konvolucni vrstvou
         size = size - convolution_kernel_size + 1
         -- velikost po projiti pooling vrstvou
-        size = size / 2
+        size = size / pooling_size
     end
     return size
 end
@@ -27,8 +28,8 @@ function construct_neural_network(width, height, input_planes, middle_planes,
                                   convolution_kernel_size, pooling_size, pooling_step)
     local network = nn.Sequential()
 
-    local size_x = calculate_size_after_convolution(width, middle_planes, convolution_kernel_size)
-    local size_y = calculate_size_after_convolution(height, middle_planes, convolution_kernel_size)
+    local size_x = calculate_size_after_convolution(width, middle_planes, convolution_kernel_size, pooling_size)
+    local size_y = calculate_size_after_convolution(height, middle_planes, convolution_kernel_size, pooling_size)
 
     print("Size x: " .. size_x)
     print("Size y: " .. size_y)

@@ -53,3 +53,79 @@ function read_filelist_recursive(directory)
     return filelist
 end
 
+function write_table(filename, content)
+    local fout = io.open(filename, "w")
+
+    -- if file could be opened for writing into it
+    if fout then
+        for _, line in ipairs(content) do
+            local result
+            result = fout:write(line)
+
+            -- in Lua 5.2 it is possible to check if write() was successful
+            if not result then
+                -- try to close the file
+                fout:close()
+                return nil
+            end
+
+            result = fout:write("\n")
+            -- in Lua 5.2 it is possible to check if write() was successful
+            if not result then
+                -- try to close the file
+                fout:close()
+                return nil
+            end
+        end
+
+        -- check if file could be closed
+        if not fout:close() then
+            return nil
+        end
+
+        -- open & write & close seems to be ok
+        return true
+    end
+    -- file can't be opened
+    -- -> return nil so this exception could be checked later
+    return nil
+end
+
+function write_dictionary(filename, content)
+    local fout = io.open(filename, "w")
+
+    -- if file could be opened for writing into it
+    if fout then
+        for key, val in pairs(content) do
+            local result
+            result = fout:write(tostring(key) .. "\t" .. tostring(val))
+
+            -- in Lua 5.2 it is possible to check if write() was successful
+            if not result then
+                -- try to close the file
+                fout:close()
+                return nil
+            end
+
+            result = fout:write("\n")
+            -- in Lua 5.2 it is possible to check if write() was successful
+            if not result then
+                -- try to close the file
+                fout:close()
+                return nil
+            end
+        end
+
+        -- check if file could be closed
+        if not fout:close() then
+            return nil
+        end
+
+        -- open & write & close seems to be ok
+        return true
+    end
+    -- file can't be opened
+    -- -> return nil so this exception could be checked later
+    return nil
+end
+

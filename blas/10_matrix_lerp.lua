@@ -21,6 +21,6 @@ print(m2)
 
 for weight = 0.0, 1.0, 0.2 do
     print("Linear interpolation with weight=" .. weight)
-    mt = torch.lerp(m1, m2, weight)
+    local mt = torch.lerp(m1, m2, weight)
     print(mt)
 end

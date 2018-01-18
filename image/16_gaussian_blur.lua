@@ -22,8 +22,8 @@ fcernd = fce + (torch.rand(SIZE)-1/2)/2
 
 
 function filter(fcerndm, gaussian_size, filename)
-    gaussian = image.gaussian1D(gaussian_size, 0.3, 1.0, true, 0.5)
-    filtered = image.convolve(fcernd:reshape(1,SIZE), gaussian:reshape(1,gaussian_size), "same")
+    local gaussian = image.gaussian1D(gaussian_size, 0.3, 1.0, true, 0.5)
+    local filtered = image.convolve(fcernd:reshape(1,SIZE), gaussian:reshape(1,gaussian_size), "same")
 
     gnuplot.pngfigure(filename)
     gnuplot.raw("set pointsize 0.0")

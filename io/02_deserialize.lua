@@ -18,7 +18,7 @@ end
 
 function readTensor(filename)
     local fin = torch.DiskFile(filename, "r")
-    return fin:readObject(tensor)
+    return fin:readObject()
     -- no fin:close() is needed here
 end
 

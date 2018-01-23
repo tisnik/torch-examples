@@ -80,7 +80,6 @@ validate_neural_network_using_noise_images(network, SCALE, 1000, BLACK_LEVEL, WH
 validate_neural_network_using_noise_images(network, SCALE, 2500, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
 validate_neural_network_using_noise_images(network, SCALE, 5000, BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
 
-os.exit(1)
 
 for digit = 0, 9 do
     print("splot for digit " .. digit)

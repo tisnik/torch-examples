@@ -42,8 +42,8 @@ end
 
 
 function convoluteAndSaveImage(source_image, size, sigma, filename)
-    kernel = image.laplacian(size, sigma, 1, true)
-    target_image = image.convolve(source_image, kernel)
+    local kernel = image.laplacian(size, sigma, 1, true)
+    local target_image = image.convolve(source_image, kernel)
     print("Applying the following kernel to create " .. filename)
     print(kernel)
     image.save(filename, target_image)

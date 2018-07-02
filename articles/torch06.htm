@@ -1,0 +1,1514 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Framework Torch: modul pro zpracování rastrových obrázků (dokončení)</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Framework Torch: modul pro zpracování rastrových obrázků (dokončení)</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V&nbsp;šesté části seriálu o frameworku Torch dokončíme popis funkcí sloužících pro manipulaci s&nbsp;rastrovými obrázky. Kromě složitějších filtrů aplikovatelných na jakýkoli typ obrázků si ukážeme i operace binární morfologie, které jsou aplikovatelné na bitmapy.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Framework Torch: modul pro zpracování rastrových obrázků (dokončení)</a></p>
+<p><a href="#k02">2. Konstrukce Gaussova filtru</a></p>
+<p><a href="#k03">3. Použití Gaussova filtru pro filtraci zašuměného obrazu</a></p>
+<p><a href="#k04">4. Laplaceův filtr</a></p>
+<p><a href="#k05">5. Použití Laplaceova filtru pro zvýraznění změn v&nbsp;obrazu</a></p>
+<p><a href="#k06">6. Konstrukce Gaussovské pyramidy</a></p>
+<p><a href="#k07">7. Použití Gaussovské pyramidy na zvolený obrázek</a></p>
+<p><a href="#k08">8. Jednodimenzionální Gaussovský filtr</a></p>
+<p><a href="#k09">9. Zobrazení hodnot jádra jednorozměrného Gaussovského filtru</a></p>
+<p><a href="#k10">10. Zobrazení dvourozměrného Gaussovského filtru</a></p>
+<p><a href="#k11">11. Aplikace Gaussova filtru pro odstranění šumu v&nbsp;jednorozměrném signálu</a></p>
+<p><a href="#k12">12. Demonstrační příklad: aplikace Gaussova filtru se zobrazením výsledků</a></p>
+<p><a href="#k13">13. Další pokročilejší filtry nabízené modulem <strong>image</strong></a></p>
+<p><a href="#k14">14. Zpracování binárních obrázků &ndash; operace binární morfologie</a></p>
+<p><a href="#k15">15. Operace dilatace (binární morfologie)</a></p>
+<p><a href="#k16">16. Operace eroze (binární morfologie)</a></p>
+<p><a href="#k17">17. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k18">18. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Framework Torch: modul pro zpracování rastrových obrázků (dokončení)</h2>
+
+<p>Dnešní článek o frameworku Torch bude rozdělen do tří nestejně rozsáhlých
+částí. V&nbsp;úvodní části si ukážeme některé způsoby aplikace Gaussova a
+Laplaceova filtru na rastrové obrázky. Tyto filtry jsou podrobněji popsány
+z&nbsp;toho důvodu, že se v&nbsp;praxi používají velmi často, a to na začátku
+celého zpracování (typicky se musí odstranit šum, zpracovat hrany, provést
+segmentaci obrazu, použít neuronovou síť na rozpoznání objektů atd.). Ve druhé
+části se budeme podrobněji zabývat použitím Gaussovského filtru, a to i pro
+filtraci jednodimenzionálního signálu.</p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-3.png" class="image-310138" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 1: Obrázek Lenny, který budeme používat v&nbsp;dalších
+demonstračních příkladech.</i></p>
+
+<p>Část třetí je věnována operacím binární (matematické) morfologie (<a
+href="https://en.wikipedia.org/wiki/Mathematical_morphology">mathematical
+morphology</a>). Tyto operace jsou aplikovány na bitmapy, tj.&nbsp;na takové
+rastrové obrázky, v&nbsp;nichž je každý pixel reprezentován jediným bitem. Mezi
+dvě základní operace podporované i frameworkem Torch patří <a
+href="#k14">dilatace</a> a <a href="#k15">eroze</a>, které je možné
+v&nbsp;případě potřeby kombinovat s&nbsp;dalšími operacemi, například
+s&nbsp;odečtením dvou obrázků od sebe atd.</p>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-1.png" class="image-311340" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 2: Bitmapa (binární rastrový obraz) s&nbsp;mřížkou, který budeme
+používat při testování morfologických operací dilatace a eroze.</i></p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Konstrukce Gaussova filtru</h2>
+
+<p>Dvoudimenzionální Gaussův (někdy též nazývaný Gaussovský) filtr se vytvoří
+velmi snadno pomocí metody <strong>gaussian</strong>:</p>
+
+<pre>
+kernel = image.gaussian(size, sigma, amplitude, normalize)
+</pre>
+
+<p>Význam jednotlivých parametrů této funkce je následující:</p>
+
+<table>
+<tr><th>Parametr</th><th>Stručný popis</th></tr>
+<tr><td>size</td><td>šířka a výška výsledné matice s&nbsp;jádrem filtru</td></tr>
+<tr><td>sigma</td><td>směrodatná odchylka, řídí strmost křivky</td></tr>
+<tr><td>amplitude</td><td>amplituda, výchozí hodnota je rovna jedné</td></tr>
+<tr><td>normalize</td><td>povolení či zákaz normalizace hodnot tak, aby byl součet roven jedné</td></tr>
+</table>
+
+<p>Příklad použití:</p>
+
+<pre>
+th&gt; <strong>image.gaussian(3, 0.2, 1, true)</strong>
+ 0.0277  0.1110  0.0277
+ 0.1110  0.4452  0.1110
+ 0.0277  0.1110  0.0277
+[torch.DoubleTensor of size 3x3]
+</pre>
+
+<p>Větší jádro filtru a strmější křivka. Hodnoty jsou normalizovány, takže
+jejich součet bude roven jedné:</p>
+
+<pre>
+th&gt; <strong>image.gaussian(5, 0.1, 1, true)</strong>
+ 6.9625e-08  2.8089e-05  2.0755e-04  2.8089e-05  6.9625e-08
+ 2.8089e-05  1.1332e-02  8.3731e-02  1.1332e-02  2.8089e-05
+ 2.0755e-04  8.3731e-02  6.1869e-01  8.3731e-02  2.0755e-04
+ 2.8089e-05  1.1332e-02  8.3731e-02  1.1332e-02  2.8089e-05
+ 6.9625e-08  2.8089e-05  2.0755e-04  2.8089e-05  6.9625e-08
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>Zákaz normalizace, takže prostřední prvek bude mít hodnotu 1:</p>
+
+<pre>
+th&gt; <strong>image.gaussian(5, 0.1, 1, false)</strong>
+ 1.1254e-07  4.5400e-05  3.3546e-04  4.5400e-05  1.1254e-07
+ 4.5400e-05  1.8316e-02  1.3534e-01  1.8316e-02  4.5400e-05
+ 3.3546e-04  1.3534e-01  1.0000e+00  1.3534e-01  3.3546e-04
+ 4.5400e-05  1.8316e-02  1.3534e-01  1.8316e-02  4.5400e-05
+ 1.1254e-07  4.5400e-05  3.3546e-04  4.5400e-05  1.1254e-07
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>V&nbsp;praxi se nejdříve vytvoří filtr, který se ihned použije pro filtraci
+obrazu. V&nbsp;tomto případě většinou budeme chtít, aby byly prvky jádra
+normalizovány (ostatně zkuste si sami, co se stane, pokud poslední parametr
+změníte na <strong>false</strong>):</p>
+
+<pre>
+kernel = image.gaussian(size, sigma, 1, true)
+target_image = image.convolve(source_image, kernel)
+image.save(filename, target_image)
+</pre>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Použití Gaussova filtru pro filtraci zašuměného obrazu</h2>
+
+<p>Výše uvedenou funkci pro vytvoření jádra Gaussovského filtru použijeme
+v&nbsp;dnešním prvním příkladu. Ten začíná podobně, jako příklady
+z&nbsp;předchozí části seriálu &ndash; pomocnými funkcemi pro stažení obrázku
+&bdquo;pravé Lenny&ldquo; namísto použití konstruktoru
+<strong>image.lena()</strong>:</p>
+
+<pre>
+require("image")
+&nbsp;
+&nbsp;
+original_image_address = "https://upload.wikimedia.org/wikipedia/en/2/24/Lenna.png"
+image_name = "lenna.png"
+&nbsp;
+&nbsp;
+function file_exists(filename)
+    local fin = io.open(filename,"r")
+    if fin then
+        io.close(fin)
+        return true
+    else
+        return false
+    end
+end
+&nbsp;
+&nbsp;
+function download_file(address, filename)
+    local command = "wget -v -O " .. filename .. " " .. address
+    os.execute(command)
+end
+&nbsp;
+&nbsp;
+function setup(address, filename)
+    if not file_exists(filename) then
+        download_file(original_image_address, filename)
+    end
+end
+&nbsp;
+setup(original_image_address, image_name)
+</pre>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-2.png" class="image-311341" alt="&#160;" width="510" height="510" />
+<p><i>Obrázek 3: Aplikace Gaussova filtru s&nbsp;velikostí jádra 3&times;3
+prvky a směrodatnou odchylkou 0,2 (obrázek se zmenšil o pixel na každé straně).</i></p>
+
+<p>Obrázek Lenny máme stažený, takže ho načteme:</p>
+
+<pre>
+lenna = image.load(image_name)
+</pre>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-3.png" class="image-311342" alt="&#160;" width="508" height="508" />
+<p><i>Obrázek 4: Aplikace Gaussova filtru s&nbsp;velikostí jádra 5&times;5
+prvků a směrodatnou odchylkou 0,2 (obrázek se zmenšil o dva pixely na každé straně).</i></p>
+
+<p>Jádro příkladu &ndash; funkce pro vytvoření filtru a jeho následnou aplikaci
+na testovací obrázek:</p>
+
+<pre>
+function convoluteAndSaveImage(source_image, size, sigma, filename)
+    kernel = image.gaussian(size, sigma, 1, true)
+    target_image = image.convolve(source_image, kernel)
+    print("Applying the following kernel to create " .. filename)
+    print(kernel)
+    image.save(filename, target_image)
+end
+</pre>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-4.png" class="image-311343" alt="&#160;" width="506" height="506" />
+<p><i>Obrázek 5: Aplikace Gaussova filtru s&nbsp;velikostí jádra 7&times;7
+prvků a směrodatnou odchylkou 0,1.</i></p>
+
+<p>Připravíme si parametry Gaussova filtru &ndash; velikost jádra (kernelu) a
+směrodatnou odchylku (sigma):</p>
+
+<pre>
+sizes = {3, 5, 7}
+sigmas = {0.1, 0.2, 1.1}
+</pre>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-5.png" class="image-311344" alt="&#160;" width="506" height="506" />
+<p><i>Obrázek 6: Aplikace Gaussova filtru s&nbsp;velikostí jádra 7&times;7
+prvků a směrodatnou odchylkou 0,2.</i></p>
+
+<p>Nyní vygenerujeme všechny kombinace parametrů nutných pro konstrukci filtru,
+vytvoříme filtr, aplikujeme ho na testovací obrázek a uložíme výsledek do
+externího souboru:</p>
+
+<pre>
+for _, size in ipairs(sizes) do
+    for __, sigma in ipairs(sigmas) do
+        filename = "gaussian_" .. size .. "x" .. size .. "_sigma_" .. sigma .. ".png"
+        convoluteAndSaveImage(lenna, size, sigma, filename)
+    end
+end
+</pre>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-6.png" class="image-311345" alt="&#160;" width="506" height="506" />
+<p><i>Obrázek 7: Aplikace Gaussova filtru s&nbsp;velikostí jádra 7&times;7
+prvků a směrodatnou odchylkou 1,1.</i></p>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Laplaceův filtr</h2>
+
+<p>Laplaceův filtr (Laplacián, i když striktně chápáno je to nesprávné jméno)
+slouží ke zvýraznění změn v&nbsp;obrázku (&bdquo;doostření&ldquo;),
+popř.&nbsp;jako jeden z&nbsp;kroků při detekci hran, které se v&nbsp;obrázku
+nachází. Taktéž se jedná o konvoluční filtr, což znamená, že se jádro filtru
+(<i>kernel</i>) postupně aplikuje na všechny pixely zdrojového obrázku i na
+jejich okolí. Při konstrukci jádra filtru se opět volí rozměry výsledné matice
+(typicky 3&times;3 prvky), směrodatná odchylka, amplituda 2D funkce a taktéž
+lze povolit či zakázat normalizaci prvků kernelu. Ukažme si příklady, podobně
+jako jsme to udělali ve <a href="#k02">druhé kapitole</a> v&nbsp;případě
+Gaussova filtru:</p>
+
+<p>Filtr s&nbsp;jádrem o rozměrech 3&times;3 prvky. Povšimněte si, že kromě
+prostředního prvku mají okolní prvky zápornou hodnotu, což je důvod, proč tento
+filtr zvýrazňuje změny a nezahlazuje je (jako filtr Gaussův):</p>
+
+<pre>
+th&gt; <strong>image.laplacian(3, 0.1, 1, true)</strong>
+-0.0002 -0.0190 -0.0002
+-0.0190  1.0765 -0.0190
+-0.0002 -0.0190 -0.0002
+[torch.DoubleTensor of size 3x3]
+</pre>
+
+<p>Filtr o rozměru jádra 5&times;5 prvků se zakázanou normalizací (prostřední
+prvek je roven jedné):</p>
+
+<pre>
+th&gt; <strong>image.laplacian(5, 0.1, 1, false)</strong>
+-1.6880e-06 -4.0860e-04 -2.3482e-03 -4.0860e-04 -1.6880e-06
+-4.0860e-04 -5.4947e-02 -1.3534e-01 -5.4947e-02 -4.0860e-04
+-2.3482e-03 -1.3534e-01  1.0000e+00 -1.3534e-01 -2.3482e-03
+-4.0860e-04 -5.4947e-02 -1.3534e-01 -5.4947e-02 -4.0860e-04
+-1.6880e-06 -4.0860e-04 -2.3482e-03 -4.0860e-04 -1.6880e-06
+[torch.DoubleTensor of size 5x5]
+</pre>
+
+<p>Od určité hodnoty směrodatné odchylky již funkce nestačí
+&bdquo;překmitnout&ldquo; do záporných hodnot a filtr přestane doostřovat:</p>
+
+<pre>
+th&gt; <strong>image.laplacian(7, 0.45, 1, false)</strong>
+ 0.0375  0.1792  0.2997  0.3472  0.2997  0.1792  0.0375
+ 0.1792  0.3988  0.5814  0.6527  0.5814  0.3988  0.1792
+ 0.2997  0.5814  0.8130  0.9029  0.8130  0.5814  0.2997
+ 0.3472  0.6527  0.9029  1.0000  0.9029  0.6527  0.3472
+ 0.2997  0.5814  0.8130  0.9029  0.8130  0.5814  0.2997
+ 0.1792  0.3988  0.5814  0.6527  0.5814  0.3988  0.1792
+ 0.0375  0.1792  0.2997  0.3472  0.2997  0.1792  0.0375
+[torch.DoubleTensor of size 7x7]
+</pre>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Použití Laplaceova filtru pro zvýraznění změn v&nbsp;obrazu</h2>
+
+<p>Opět si ukažme praktické použití Laplaceova filtru pro zvýraznění změn
+v&nbsp;obrazu. Nejprve si připravíme funkci pro konstrukci jádra filtru,
+aplikaci filtru na testovací obrázek a uložení výsledku do souboru:</p>
+
+<pre>
+function convoluteAndSaveImage(source_image, size, sigma, filename)
+    kernel = image.laplacian(size, sigma, 1, true)
+    target_image = image.convolve(source_image, kernel)
+    print("Applying the following kernel to create " .. filename)
+    print(kernel)
+    image.save(filename, target_image)
+end
+</pre>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-7.png" class="image-311346" alt="&#160;" width="510" height="510" />
+<p><i>Obrázek 8: Aplikace Gaussova filtru s&nbsp;velikostí jádra 3&times;3
+prvky a směrodatnou odchylkou 0,2.</i></p>
+
+<p>Načteme testovací obrázek Lenny:</p>
+
+<pre>
+setup(original_image_address, image_name)
+&nbsp;
+lenna = image.load(image_name)
+</pre>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-8.png" class="image-311347" alt="&#160;" width="508" height="508" />
+<p><i>Obrázek 9: Aplikace Gaussova filtru s&nbsp;velikostí jádra 5&times;5
+prvků a směrodatnou odchylkou 0,1.</i></p>
+
+<p>Připravíme si parametry Laplaceova filtru &ndash; velikost jádra (kernelu) a
+směrodatnou odchylku (sigma):</p>
+
+<pre>
+sizes = {3, 5, 7}
+sigmas = {0.1, 0.2, 0.25, 0.3, 0.5}
+</pre>
+
+<img src="https://i.iinfo.cz/images/256/torch6a-9.png" class="image-311348" alt="&#160;" width="508" height="508" />
+<p><i>Obrázek 10: Aplikace Gaussova filtru s&nbsp;velikostí jádra 5&times;5
+prvků a směrodatnou odchylkou 0,2.</i></p>
+
+<p>Nyní vygenerujeme všechny kombinace parametrů nutných pro konstrukci filtru,
+vytvoříme filtr, aplikujeme ho na testovací obrázek a uložíme výsledek do
+externího souboru:</p>
+
+<pre>
+for _, size in ipairs(sizes) do
+    for __, sigma in ipairs(sigmas) do
+        filename = "laplacian_" .. size .. "x" .. size .. "_sigma_" .. sigma .. ".png"
+        convoluteAndSaveImage(lenna, size, sigma, filename)
+    end
+end
+</pre>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-1.png" class="image-311350" alt="&#160;" width="506" height="506" />
+<p><i>Obrázek 11: Aplikace Gaussova filtru s&nbsp;velikostí jádra 7&times;7
+prvků a směrodatnou odchylkou 0,1.</i></p>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-2.png" class="image-311351" alt="&#160;" width="506" height="506" />
+<p><i>Obrázek 12: Aplikace Gaussova filtru s&nbsp;velikostí jádra 7&times;7
+prvků a směrodatnou odchylkou 0,2.</i></p>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Konstrukce Gaussovské pyramidy</h2>
+
+<p>V&nbsp;modulu <strong>image</strong> nalezneme i další užitečnou funkci
+nazvanou <strong>gaussianpyramid</strong>. Tato funkce slouží ke konstrukci
+takzvané <a
+href="https://en.wikipedia.org/wiki/Pyramid_(image_processing)#Gaussian_pyramid">Gaussovské
+pyramidy</a>, což je &ndash; zjednodušeně řečeno &ndash; soubor rastrových
+obrázků, které vzniknou z&nbsp;původního zdrojového obrázku postupným
+zmenšováním a aplikací Gaussova filtru. Při konstrukci pyramidy se musí
+specifikovat měřítka vytvářených obrázků, která většinou mívají hodnotu
+2<sup>-n</sup>, tedy například 1/2, 1/4, 1/8 atd. Podívejme se na příklad
+postupného zmenšování zdrojového obrázku Lenny, jehož původní rozlišení je
+512&times;512 pixelů:</p>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-3.png" class="image-311352" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 13: První úroveň pyramidy (nultá úroveň je představována obrázkem číslo 1 na začátku článku).</i></p>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-4.png" class="image-311353" alt="&#160;" width="128" height="128" />
+<p><i>Obrázek 14: Druhá úroveň pyramidy.</i></p>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-5.png" class="image-311354" alt="&#160;" width="64" height="64" />
+<p><i>Obrázek 15: Třetí úroveň pyramidy.</i></p>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-6.png" class="image-311355" alt="&#160;" width="32" height="32" />
+<p><i>Obrázek 16: Čtvrtá úroveň pyramidy.</i></p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Použití Gaussovské pyramidy na zvolený obrázek</h2>
+
+<p>Konstrukce Gaussovské pyramidy, tedy několika rastrových obrázků
+s&nbsp;postupně se zmenšujícím rozlišením, je velmi snadná, jak je to ostatně
+patrné z&nbsp;následujícího demonstračního příkladu (část, která se stará o
+stažení obrázku Lenny jsme již vynechali):</p>
+
+<pre>
+setup(original_image_address, image_name)
+&nbsp;
+lenna = image.load(image_name)
+&nbsp;
+pyramid = <strong>image.gaussianpyramid(lenna, {1/2, 1/4, 1/8, 1/16})</strong>
+&nbsp;
+for i, img in ipairs(pyramid) do
+    image.save("pyramid_level" .. i .. ".png", img)
+end
+</pre>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Jednodimenzionální Gaussovský filtr</h2>
+
+<p>V&nbsp;knihovně <strong>image</strong> frameworku <i>Torch</i> najdeme i
+funkci nazvanou <strong>gaussian1D</strong>, která slouží k&nbsp;vytvoření
+jádra jednorozměrného Gaussovského filtru. Toto jádro je reprezentováno
+obyčejným 1D vektorem, přičemž počet prvků vektoru odpovídá zvolené velikosti
+filtru. Funkci <strong>gaussian1D</strong> se předává pět parametrů:</p>
+
+<pre>
+image.gaussian1D(size, sigma, amplitude, normalize, mean)
+</pre>
+
+<p>Význam jednotlivých parametrů:</p>
+
+<table>
+<tr><th>Parametr</th><th>Stručný popis</th></tr>
+<tr><td>size</td><td>počet prvků výsledného vektoru s&nbsp;jádrem filtru</td></tr>
+<tr><td>sigma</td><td>směrodatná odchylka, řídí strmost křivky</td></tr>
+<tr><td>amplitude</td><td>amplituda, výchozí hodnota je rovna jedné</td></tr>
+<tr><td>normalize</td><td>povolení či zákaz normalizace hodnot tak, aby byl součet roven jedné</td></tr>
+<tr><td>mean</td><td>střední hodnota, umožňuje posun křivky, z&nbsp;níž se odvozují koeficienty filtru</td></tr>
+</table>
+
+<p>Filtr s&nbsp;&bdquo;klasickými&ldquo; hodnotami vznikne tak, že se amplituda
+nastaví na jedničku, povolí se normalizace hodnot, střední hodnota se nastaví
+na 1/2 a směrodatná odchylka na takovou hodnotu, aby to odpovídalo požadované
+strmosti:</p>
+
+<pre>
+th&gt; <strong>image.gaussian1D(10, 0.1, 1.0, true, 0.5)</strong>
+ 0.0000
+ 0.0009
+ 0.0175
+ 0.1295
+ 0.3521
+ 0.3521
+ 0.1295
+ 0.0175
+ 0.0009
+ 0.0000
+[torch.DoubleTensor of size 10]
+</pre>
+
+<p>Dtto, ale bez provedení normalizace:</p>
+
+<pre>
+th&gt; <strong>image.gaussian1D(10, 0.1, 1.0, false, 0.5)</strong>
+ 0.0000
+ 0.0022
+ 0.0439
+ 0.3247
+ 0.8825
+ 0.8825
+ 0.3247
+ 0.0439
+ 0.0022
+ 0.0000
+[torch.DoubleTensor of size 10]
+</pre>
+
+<p>&bdquo;Vycentrování&ldquo; díky tomu, že vygenerujeme vektor
+s&nbsp;jedenácti prvky. Prostřední prvek již má (bez provedené normalizace)
+hodnotu 1:</p>
+
+<pre>
+th&gt; <strong>image.gaussian1D(11, 0.1, 1.0, false, 0.5)</strong>
+ 3.2620e-05
+ 1.3447e-03
+ 2.4258e-02
+ 1.9150e-01
+ 6.6151e-01
+ 1.0000e+00
+ 6.6151e-01
+ 1.9150e-01
+ 2.4258e-02
+ 1.3447e-03
+ 3.2620e-05
+[torch.DoubleTensor of size 11]
+</pre>
+
+<p>Změna směrodatné odchylky:</p>
+
+<pre>
+th&gt; <strong>image.gaussian1D(10, 0.5, 1.0, true, 0.5)</strong>
+ 0.0779
+ 0.0914
+ 0.1030
+ 0.1116
+ 0.1162
+ 0.1162
+ 0.1116
+ 0.1030
+ 0.0914
+ 0.0779
+[torch.DoubleTensor of size 10]
+</pre>
+
+<p>Posun koeficientů doprava (hodnoty prvků nyní monotónně rostou):</p>
+
+<pre>
+th&gt; <strong>image.gaussian1D(10, 0.3, 1.0, true, 1.0)</strong>
+ 0.0018
+ 0.0048
+ 0.0117
+ 0.0255
+ 0.0496
+ 0.0864
+ 0.1348
+ 0.1881
+ 0.2349
+ 0.2625
+[torch.DoubleTensor of size 10]
+</pre>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Zobrazení hodnot jádra jednorozměrného Gaussovského filtru</h2>
+
+<p>Namísto sledování hodnot prvků vektorů bude názornější, když si prvky
+Gaussovského filtru necháme zobrazit přímo knihovnou Torch. Všechny znalosti
+k&nbsp;tomu potřebné již máme, protože umíme vykreslit jednoduchý graf funkce
+jedné nezávislé proměnné s&nbsp;využitím knihovny Gnuplot. Podívejme se nyní,
+jak se vykreslí čtyři různé Gaussovské filtry, přesněji řečeno hodnoty prvků
+těchto filtrů, které se navzájem propojí úsečkami.</p>
+
+<p>Příprava:</p>
+
+<pre>
+require("image")
+require("gnuplot")
+&nbsp;
+&nbsp;
+SIZE = 40
+</pre>
+
+<p>Dále si připravíme pomocný vektor, díky němuž bude možné zobrazit hodnoty na
+x-ové ose:</p>
+
+<pre>
+x = torch.linspace(0, 1.0, SIZE)
+</pre>
+
+<p>Vytvoření čtyř vektorů s&nbsp;jádry Gaussovského filtru:</p>
+
+<pre>
+y1 = image.gaussian1D(SIZE, 0.1, 1.0, true, 0.5)
+y2 = image.gaussian1D(SIZE, 0.2, 1.0, true, 0.5)
+y3 = image.gaussian1D(SIZE, 0.3, 1.0, true, 0.5)
+y4 = image.gaussian1D(SIZE, 0.1, 1.0, true, 0.25)
+</pre>
+
+<p>Nastavení parametrů grafu:</p>
+
+<pre>
+gnuplot.pngfigure("gaussian.png")
+gnuplot.title("Gaussian")
+gnuplot.xlabel("x")
+gnuplot.ylabel("Gaussian")
+gnuplot.raw('unset xtics')
+</pre>
+
+<p>Vykreslení všech čtyř průběhů i s&nbsp;legendou:</p>
+
+<pre>
+gnuplot.plot({"sigma=0.1, mean=1/2", y1},
+             {"sigma=0.2, mean=1/2", y2},
+             {"sigma=0.3, mean=1/2", y3},
+             {"sigma=0.1, mean=1/4", y4})
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-7.png" class="image-311356" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 17: Výsledek běhu předchozího příkladu zobrazujícího hodnoty čtyř
+Gaussovských filtrů.</i></p>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Zobrazení dvourozměrného Gaussovského filtru</h2>
+
+<p>Pro zajímavost si ještě zobrazme hodnoty koeficientů dvourozměrného
+Gaussovského filtru. Použijeme přitom funkci <strong>gnuplot.imagesc</strong>,
+která jednotlivé hodnoty reprezentuje změnou barvy ve zvolené barvové škále či
+ve stupních šedi.</p>
+
+<p>Opět začneme importem potřebných modulů:</p>
+
+<pre>
+require("image")
+require("gnuplot")
+</pre>
+
+<p>Dále vytvoříme dvě jádra filtrů, každé o velikosti 30&times;30
+koeficientů:</p>
+
+<pre>
+z1 = image.gaussian(30, 0.1, 1.0, false)
+z2 = image.gaussian(30, 1.1, 1.0, false)
+</pre>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-8.png" class="image-311357" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 18: Výsledek běhu předchozího příkladu zobrazujícího hodnotu
+dvoudimenzionálního Gaussovského filtru.</i></p>
+
+<p>Zbývá nám vykreslení hodnot 2D mřížky, k&nbsp;čemuž nám poslouží nám již
+známá funkce <strong>imagesc</strong>:</p>
+
+<pre>
+gnuplot.pngfigure("2d_gaussian_1.png")
+gnuplot.imagesc(z1, 'color')
+gnuplot.plotflush()
+gnuplot.close()
+&nbsp;
+gnuplot.pngfigure("2d_gaussian_2.png")
+gnuplot.imagesc(z2, 'color')
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-9.png" class="image-311358" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 19: Výsledek běhu předchozího příkladu zobrazujícího hodnotu
+dvoudimenzionálního Gaussovského filtru (odlišné koeficienty).</i></p>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Aplikace Gaussova filtru pro odstranění šumu v&nbsp;jednorozměrném signálu</h2>
+
+<p>Ukažme si nyní, jak je možné použít jednodimenzionální Gaussův filtr pro
+odstranění šumu z&nbsp;jednorozměrného signálu. Bude to nepatrně složitější,
+protože nelze použít funkci pro 1D konvoluci. Nejprve vytvoříme signál bez
+šumu, což bude čistá sinusovka (SIZE je počet prvků výsledného vektoru):</p>
+
+<pre>
+x = torch.linspace(0, 2*math.pi, SIZE)
+fce = torch.sin(x)
+</pre>
+
+<p>Dále sinusovku &bdquo;zašumíme&ldquo; náhodným signálem, tedy zhruba
+takto:</p>
+
+<pre>
+fcernd = fce + (torch.rand(SIZE)-1/2)/2
+</pre>
+
+<img src="https://i.iinfo.cz/images/441/torch6b-10.png" class="image-311359" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 20: Modrá křivka &ndash; původní signál, zelená křivka &ndash;
+zašuměný signál, červená šipka &ndash; po odstranění šumu filtrem o délce tří
+prvků.</i></p>
+
+<p>Nyní zkonstruujeme jednorozměrný Gaussovský filtr, tj.&nbsp;vektor se třemi,
+pěti či sedmi prvky (můžete zkusit i větší filtr popř.&nbsp;změnit hodnotu
+sigma):</p>
+
+<pre>
+gaussian = image.gaussian1D(gaussian_size, 0.3, 1.0, true, 0.5)
+</pre>
+
+<p>Konvoluci budeme muset ošidit, protože se jak původní signál, tak i
+Gaussovský filtr převede na 2D matice s&nbsp;jediným řádkem a počtem sloupců
+odpovídajících délce původního vektoru:</p>
+
+<pre>
+filtered = image.convolve(fcernd:reshape(1,SIZE), gaussian:reshape(1,gaussian_size), "same")
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-1.png" class="image-311360" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 21: Modrá křivka &ndash; původní signál, zelená křivka &ndash;
+zašuměný signál, červená šipka &ndash; po odstranění šumu filtrem o délce pěti
+prvků.</i></p>
+
+<p>Všechny tři signály si necháme zobrazit:</p>
+
+<pre>
+gnuplot.pngfigure(filename)
+gnuplot.raw("set pointsize 0.0")
+gnuplot.title("Gaussian blur")
+gnuplot.xlabel("x")
+gnuplot.ylabel("fce")
+gnuplot.plot({{"sin(x)", x, fce, "-"},
+             {"sin(x)+random", x, fcernd, "-"},
+             {"filtered", x, filtered[1], "-"}}
+)
+gnuplot.plotflush()
+gnuplot.close()
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-2.png" class="image-311361" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 22: Modrá křivka &ndash; původní signál, zelená křivka &ndash;
+zašuměný signál, červená šipka &ndash; po odstranění šumu filtrem o délce sedmi
+prvků.</i></p>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Demonstrační příklad: aplikace Gaussova filtru se zobrazením výsledků</h2>
+
+<p>Úplný zdrojový kód příkladu, v&nbsp;němž se aplikuje Gaussův filtr o zvolené
+velikosti na &bdquo;zašuměný&ldquo; signál, vypadá následovně. Popis
+jednotlivých kroků jsme si již řekli v&nbsp;předchozí kapitole:</p>
+
+<pre>
+require("image")
+require("gnuplot")
+&nbsp;
+&nbsp;
+SIZE = 100
+&nbsp;
+x = torch.linspace(0, 2*math.pi, SIZE)
+fce = torch.sin(x)
+fcernd = fce + (torch.rand(SIZE)-1/2)/2
+&nbsp;
+&nbsp;
+function filter(fcerndm, gaussian_size, filename)
+    gaussian = image.gaussian1D(gaussian_size, 0.3, 1.0, true, 0.5)
+    filtered = image.convolve(fcernd:reshape(1,SIZE), gaussian:reshape(1,gaussian_size), "same")
+&nbsp;
+    gnuplot.pngfigure(filename)
+    gnuplot.raw("set pointsize 0.0")
+    gnuplot.title("Gaussian blur")
+    gnuplot.xlabel("x")
+    gnuplot.ylabel("fce")
+    gnuplot.plot({{"sin(x)", x, fce, "-"},
+                 {"sin(x)+random", x, fcernd, "-"},
+                 {"filtered", x, filtered[1], "-"}}
+    )
+    gnuplot.plotflush()
+    gnuplot.close()
+end
+&nbsp;
+filter(fcernd, 3, "gaussian_blur_3.png")
+filter(fcernd, 5, "gaussian_blur_5.png")
+filter(fcernd, 7, "gaussian_blur_7.png")
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Další pokročilejší filtry nabízené modulem <strong>image</strong></h2>
+
+<p>Mezi další užitečné filtry patří především filtr <i>LCN</i> neboli <i>Local
+contrast normalization</i>. Ve výchozím nastavení tento filtr používá jádro
+odpovídající Gaussovskému filtru o rozměrech 9&times;9 prvků. Postup aplikace
+LCN je následující:</p>
+
+<ol>
+<li>Normalizace kontrastu zdrojového obrázku.</li>
+<li>Vytvoření jádra filtru.</li>
+<li>Lokální normalizace kontrastu podle vzorce res = (src - lm(src)) / sqrt(lm(src) - lm(src*src)), přičemž funkce <i>lm()</i> počítá lokální kontrast s&nbsp;využitím filtru vytvořeného v&nbsp;předchozím kroku</li>
+</ol>
+
+<p>Podívejme se nyní, co se stane, pokud tento filtru budeme aplikovat na
+testovací obrázek Lenny. Povšimněte si, že odečtem lokálního kontrastu od
+pixelů původního obrázku se zvýraznily změny v&nbsp;obrazu:</p>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-3.png" class="image-311362" alt="&#160;" width="504" height="504" />
+<p><i>Obrázek 23: Výsledek aplikace LCN (výsledek je zmenšen o čtyři pixely na každé straně).</i></p>
+
+<p>Obrázek číslo 23 byl vytvořen následujícím příkladem:</p>
+
+<pre>
+require("image")
+require("gnuplot")
+&nbsp;
+&nbsp;
+original_image_address = "https://upload.wikimedia.org/wikipedia/en/2/24/Lenna.png"
+image_name = "lenna.png"
+&nbsp;
+&nbsp;
+function file_exists(filename)
+    local fin = io.open(filename,"r")
+    if fin then
+        io.close(fin)
+        return true
+    else
+        return false
+    end
+end
+&nbsp;
+&nbsp;
+function file_exists(filename)
+    local fin = io.open(filename,"r")
+    if fin then
+        io.close(fin)
+        return true
+    else
+        return false
+    end
+end
+&nbsp;
+&nbsp;
+function download_file(address, filename)
+    local command = "wget -v -O " .. filename .. " " .. address
+    os.execute(command)
+end
+&nbsp;
+&nbsp;
+function setup(address, filename)
+    if not file_exists(filename) then
+        download_file(original_image_address, filename)
+    end
+end
+&nbsp;
+&nbsp;
+setup(original_image_address, image_name)
+&nbsp;
+lenna = image.load(image_name, 1)
+image.save("lenna_grayscale.png", lenna)
+&nbsp;
+lcn_default = <strong>image.lcn(lenna)</strong>
+image.save("lcn_default.png", lcn_default)
+</pre>
+
+<p>Vzhledem k&nbsp;tomu, že pro LCN je možné použít i filtr s&nbsp;odlišným
+jádrem, můžeme si trošku zaexperimentovat:</p>
+
+<pre>
+require("image")
+require("gnuplot")
+&nbsp;
+&nbsp;
+original_image_address = "https://upload.wikimedia.org/wikipedia/en/2/24/Lenna.png"
+image_name = "lenna.png"
+&nbsp;
+&nbsp;
+function file_exists(filename)
+    local fin = io.open(filename,"r")
+    if fin then
+        io.close(fin)
+        return true
+    else
+        return false
+    end
+end
+&nbsp;
+&nbsp;
+function file_exists(filename)
+    local fin = io.open(filename,"r")
+    if fin then
+        io.close(fin)
+        return true
+    else
+        return false
+    end
+end
+&nbsp;
+&nbsp;
+function download_file(address, filename)
+    local command = "wget -v -O " .. filename .. " " .. address
+    os.execute(command)
+end
+&nbsp;
+&nbsp;
+function setup(address, filename)
+    if not file_exists(filename) then
+        download_file(original_image_address, filename)
+    end
+end
+&nbsp;
+&nbsp;
+function applyLcnAndSaveImage(source_image, size, sigma, filename)
+    kernel = image.gaussian(size, sigma, 0.5, true)
+    target_image = image.lcn(source_image, kernel)
+    print("Applying the following filter to create " .. filename)
+    print(kernel)
+    image.save(filename, target_image)
+end
+&nbsp;
+&nbsp;
+setup(original_image_address, image_name)
+&nbsp;
+lenna = image.load(image_name, 1)
+image.save("lenna_grayscale.png", lenna)
+&nbsp;
+sizes = {3, 5, 7, 15}
+sigmas = {0.2, 0.5, 1.1}
+&nbsp;
+for _, size in ipairs(sizes) do
+    for __, sigma in ipairs(sigmas) do
+        filename = "custom_lcn_" .. size .. "x" .. size .. "_sigma_" .. sigma .. ".png"
+        applyLcnAndSaveImage(lenna, size, sigma, filename)
+    end
+end
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-4.png" class="image-311363" alt="&#160;" width="510" height="510" />
+<p><i>Obrázek 24: LCN používající Gaussovský filtr s&nbsp;jádrem 3&times;3,
+sigma je nastavena na hodnotu 1,1.</i></p>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-5.png" class="image-311364" alt="&#160;" width="508" height="508" />
+<p><i>Obrázek 25: LCN používající Gaussovský filtr s&nbsp;jádrem 5&times;5,
+sigma je nastavena na hodnotu 1,1.</i></p>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-6.png" class="image-311365" alt="&#160;" width="506" height="506" />
+<p><i>Obrázek 26: LCN používající Gaussovský filtr s&nbsp;jádrem 7&times;7,
+sigma je nastavena na hodnotu 1,1.</i></p>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-7.png" class="image-311366" alt="&#160;" width="498" height="498" />
+<p><i>Obrázek 27: LCN používající Gaussovský filtr s&nbsp;jádrem 15&times;15,
+sigma je nastavena na hodnotu 1,1.</i></p>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Zpracování binárních obrázků &ndash; operace binární morfologie</h2>
+
+<p>V&nbsp;knihovně Torch nalezneme i některé operace binární morfologie. Jedná
+se o specifické filtry prováděné nad bitmapami, ovšem slovo
+&bdquo;bitmapa&ldquo; zde musíme chápat v&nbsp;původním významu &bdquo;rastrový
+obrázek, v&nbsp;němž je hodnota každého pixelu reprezentovaná jediným
+bitem&ldquo;. Většina operací binární morfologie se používá při rozpoznávání
+tvarů či objektů v&nbsp;obrázcích (<i>morphological image processing</i>).
+Typické je použití těchto operací v&nbsp;OCR (<i>Optical Character
+Recognition</i>); jednou z&nbsp;těchto operací je vytvoření kostry
+(<i>skeleton</i>) znaku, který má být následně rozpoznán. Ovšem například
+dilataci a erozi lze (při vhodné aplikaci) použít pro zvýraznení hran
+v&nbsp;původním černobílém či plnobarevném obrázku. Čtyři základní operace
+binární morfologie jsou vypsány v&nbsp;následující tabulce spolu
+s&nbsp;informací o tom, zda má význam aplikovat danou operaci několikrát (pokud
+je u operace znak &times;, nemá opakované použití vliv na výsledek):</p>
+
+<table>
+<tr><th>Operace</th><th>Vícenásobné opakování</th><th>Podpora v&nbsp;Torchi</th><th>Podpora v&nbsp;Matlabu</th></tr>
+<tr><td>Otevření</td><td>&times;</td><td>&times;</td><td>imopen</td></tr>
+<tr><td>Uzavření</td><td>&times;</td><td>&times;</td><td>imclose</td></tr>
+<tr><td>Dilatace</td><td>&#x2713;</td><td>&#x2713;</td><td>imdilate</td></tr>
+<tr><td>Eroze</td><td>&#x2713;</td><td>&#x2713;</td><td>imerode</td></tr>
+</table>
+
+<img src="https://i.iinfo.cz/images/33/tkinter7-1.png" class="image-302228" alt="&#160;" width="256" height="192" />
+<p><i>Obrázek 28: Bitmapa, tj.&nbsp;dvoubarevný rastrový obrázek.</i></p>
+
+<p>Poznámka: dnes je již použití klasických bitmap do značné míry omezeno na
+zpracování obrazu mj.&nbsp;i výše uvedenými funkcemi (morfologie obrazu),
+specifikaci výběrových masek v&nbsp;rastrových grafických editorech
+popř.&nbsp;pro ikony či pro specifický pixel art [<a
+href="http://pixeljoint.com/files/icons/full/2_colour_wave.gif">1</a>] [<a
+href="http://pixeljoint.com/files/icons/full/new_contest_entry.png">2</a>] [<a
+href="http://pixeljoint.com/files/icons/full/galaxyparrot.gif">3</a>].</a>
+
+<p>Poznámka<sup>2</sup>: jedním z&nbsp;filtrů, které se aplikují na bitmapu, je
+možné implementovat i slavnou hříčku <a
+href="https://cs.wikipedia.org/wiki/Hra_%C5%BEivota">Život</a> Johna
+Conwaye.</p>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Operace dilatace (binární morfologie)</h2>
+
+<p>První morfologickou operací, která je frameworkem Torch podporována, je
+dilatace. Tuto operaci lze povést nad bitmapou zavoláním funkce:</p>
+
+<pre>
+target = image.dilate(source)
+</pre>
+
+<p>popř.&nbsp;lze explicitně specifikovat jádro (kernel) neboli strukturní
+element:</p>
+
+<pre>
+target = image.dilate(source, kernel)
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-8.png" class="image-311367" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 29: Dilatace mřížky ze druhého obrázku, první iterace.</i></p>
+
+<p>Posledním nepovinným parametrem je možné určit, jakou hodnotu (0 nebo 1)
+mají imaginární pixely okolo obrázku, protože strukturní element se aplikuje i
+na okraji obrázku, tudíž zasahuje mimo něj. Implicitní hodnotou je v&nbsp;tomto
+případě nula:</p>
+
+<pre>
+target = image.dilate(source, kernel, 1)
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-9.png" class="image-311368" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 30: Dilatace mřížky ze druhého obrázku, druhá iterace.</i></p>
+
+<p>V&nbsp;případě, že se použije standardní strukturní element o velikosti
+3&times;3 pixely, dojde při aplikaci operace <i>dilatace</i>
+k&nbsp;následujícím změnám ve výsledném obrázku:</p>
+
+<ol>
+<li>Díry o maximální velikosti jednoho pixelu jsou zaplněny (zmizí).</li>
+<li>Hrany objektů se o jeden pixel zvětší (zvětšení je měřeno
+v&nbsp;horizontálním a vertikálním směru). Říká se, že objekty získají novou
+&bdquo;slupku&ldquo;.</li>
+<li>Blízké objekty jsou spojeny.</li>
+</ol>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-10.png" class="image-311369" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 31: Dilatace mřížky ze druhého obrázku, třetí iterace.</i></p>
+
+<p>Operaci dilatace je možné aplikovat vícekrát za sebou. V&nbsp;takovém
+případě bude docházet k&nbsp;neustálému narůstání &bdquo;slupky&ldquo; okolo
+objektů. Pojďme si to ukázat. Nejprve vytvoříme binární obrázek s&nbsp;mřížkou.
+Nezapomínejme na to, že bílá barva reprezentuje objekt, černá barva pozadí:</p>
+
+<pre>
+require("image")
+require("gnuplot")
+&nbsp;
+&nbsp;
+SIZE = 256
+GRID = 16
+BORDER = 100
+&nbsp;
+&nbsp;
+function createImageWithGrid(size, grid, border)
+    img=torch.Tensor(size, size)
+    img:zero()
+&nbsp;
+    for row = border, size-border, grid do
+        img:narrow(1, row, 1):fill(1)
+    end
+&nbsp;
+    for column = border, size-border, grid do
+        img:narrow(2, column, 1):fill(1)
+    end
+&nbsp;
+    return img
+end
+&nbsp;
+&nbsp;
+source = createImageWithGrid(SIZE, GRID, BORDER)
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-11.png" class="image-311370" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 32: Dilatace mřížky ze druhého obrázku, čtvrtá iterace.</i></p>
+
+<p>Původní mřížku uložíme do souboru, abychom si ji mohli prohlédnout:</p>
+
+<pre>
+image.save("original_grid.png", source)
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-12.png" class="image-311371" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 33: Dilatace mřížky ze druhého obrázku, pátá iterace.</i></p>
+
+<p>Nyní budeme sedmkrát za sebou na obrázek aplikovat operaci dilatace a
+mezivýsledek si vždy uložíme do souboru. Po sedmé aplikaci již prakticky dojde
+ke spojení mřížky do jediného kříže:</p>
+
+<pre>
+for i=1,7 do
+    dilated = image.dilate(source)
+    image.save("dilated" .. i .. ".png", dilated)
+    source = dilated
+end
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-13.png" class="image-311372" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 34: Dilatace mřížky ze druhého obrázku, šestá iterace.</i></p>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-14.png" class="image-311373" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 35: Dilatace mřížky ze druhého obrázku, sedmá iterace.</i></p>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Operace eroze (binární morfologie)</h2>
+
+<p>Zatímco operace dilatace sloužila pro vyplnění děr v&nbsp;objektech a pro
+jejich rozšíření o další slupky, je operace eroze vlastně přímým opakem,
+protože dokáže objekty zeštíhlit. Tuto operaci zavoláme pomocí funkce:</p>
+
+<pre>
+target = image.erode(source)
+</pre>
+
+<p>popř.&nbsp;je možné (opět) explicitně specifikovat jádro (kernel) neboli
+strukturní element:</p>
+
+<pre>
+target = image.erode(source, kernel)
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-15.png" class="image-311374" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 36: Eroze &bdquo;tlusté&ldquo; mřížky z&nbsp;obrázku číslo 34, první iterace.</i></p>
+
+<p>Poslední alternativa volání slouží ke specifikaci hodnoty imaginárních
+pixelů okolo obrázku. Implicitní hodnotou je v&nbsp;tomto případě
+jednička!:</p>
+
+<pre>
+target = image.erode(source, kernel, 0)
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-16.png" class="image-311375" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 37: Eroze &bdquo;tlusté&ldquo; mřížky z&nbsp;obrázku číslo 34, druhá iterace.</i></p>
+
+<p>V&nbsp;případě, že se použije standardní strukturní element o velikosti
+3&times;3 pixely, dojde při aplikaci operace <i>eroze</i> k&nbsp;následujícím
+změnám ve výsledném obrázku:</p>
+
+<ol>
+<li>Body o maximální velikosti jednoho pixelu jsou vymazány (zmizí).</li>
+<li>Hrany o šířce jeden pixel taktéž zmizí.</li>
+<li>Ostatní hrany jsou zúženy o jeden pixel.</li>
+<li>Může dojít k&nbsp;rozdělení (rozpadu) složitějších objektů.</li>
+</ol>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-17.png" class="image-311376" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 38: Eroze &bdquo;tlusté&ldquo; mřížky z&nbsp;obrázku číslo 34, třetí iterace.</i></p>
+
+<p>Poznámka: erozi je možné použít například pro detekci hran. Postačí od
+původního obrázku odečíst obrázek erodovaný, k&nbsp;čemuž nám v&nbsp;Torchi
+dobře poslouží přetížený operátor -.</p>
+
+<p>Příklad pro ukázání operace eroze začíná stejně jako příklad předchozí,
+protože si nejprve připravíme mřížku:</p>
+
+<pre>
+require("image")
+require("gnuplot")
+&nbsp;
+&nbsp;
+SIZE = 256
+GRID = 16
+BORDER = 100
+&nbsp;
+&nbsp;
+function createImageWithGrid(size, grid, border)
+    img=torch.Tensor(size, size)
+    img:zero()
+&nbsp;
+    for row = border, size-border, grid do
+        img:narrow(1, row, 1):fill(1)
+    end
+&nbsp;
+    for column = border, size-border, grid do
+        img:narrow(2, column, 1):fill(1)
+    end
+&nbsp;
+    return img
+end
+&nbsp;
+&nbsp;
+source = createImageWithGrid(SIZE, GRID, BORDER)
+</pre>
+
+<p>Uložíme ji do souboru:</p>
+
+<pre>
+image.save("original_grid.png", source)
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-18.png" class="image-311377" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 39: Eroze &bdquo;tlusté&ldquo; mřížky z&nbsp;obrázku číslo 34, čtvrtá iterace.</i></p>
+
+<p>Vytvoříme &bdquo;tlustou&ldquo; verzi mřížky:</p>
+
+<pre>
+for i=1,5 do
+    dilated = image.dilate(source)
+    source = dilated
+end
+</pre>
+
+<img src="https://i.iinfo.cz/images/466/torch6c-19.png" class="image-311378" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 40: Eroze &bdquo;tlusté&ldquo; mřížky z&nbsp;obrázku číslo 34, pátá iterace.</i></p>
+
+<p>A potom ji opět ztenčíme, tentokrát již kýženou operací eroze:</p>
+
+<pre>
+for i=1,7 do
+    eroded = image.erode(source)
+    image.save("eroded" .. i .. ".png", eroded)
+    source = eroded
+end
+</pre>
+
+<p>Po šesté iteraci ovšem celý objekt zmizí, neboť byl ztenčen na nula
+pixelů.</p>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Všechny demonstrační příklady, které jsme si popsali v&nbsp;předchozích
+kapitolách, najdete v&nbsp;GIT repositáři dostupném na adrese <a
+href="https://github.com/tisnik/torch-examples.git">https://github.com/tisnik/torch-examples.git</a>.
+Následují odkazy na zdrojové kódy jednotlivých příkladů:</p>
+
+<table>
+<tr><th>Příklad</th><th>Adresa</th></tr>
+<tr><td>11_gaussian_filter.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/11_gaussian_filter.lua">https://github.com/tisnik/torch-examples/blob/master/image/11_gaussian_filter.lua</a></td></tr>
+<tr><td>12_laplacian_filter.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/12_laplacian_filter.lua">https://github.com/tisnik/torch-examples/blob/master/image/12_laplacian_filter.lua</a></td></tr>
+<tr><td>13_gaussian_pyramid.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/13_gaussian_pyramid.lua">https://github.com/tisnik/torch-examples/blob/master/image/13_gaussian_pyramid.lua</a></td></tr>
+<tr><td>14_1d_gaussian.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/14_1d_gaussian.lua">https://github.com/tisnik/torch-examples/blob/master/image/14_1d_gaussian.lua</a></td></tr>
+<tr><td>15_2d_gaussian.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/15_2d_gaussian.lua">https://github.com/tisnik/torch-examples/blob/master/image/15_2d_gaussian.lua</a></td></tr>
+<tr><td>16_gaussian_blur.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/16_gaussian_blur.lua">https://github.com/tisnik/torch-examples/blob/master/image/16_gaussian_blur.lua</a></td></tr>
+<tr><td>17_default_lcn.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/17_default_lcn.lua">https://github.com/tisnik/torch-examples/blob/master/image/17_default_lcn.lua</a></td></tr>
+<tr><td>18_custom_lcn.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/18_custom_lcn.lua">https://github.com/tisnik/torch-examples/blob/master/image/18_custom_lcn.lua</a></td></tr>
+<tr><td>19_dilate.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/19_dilate.lua">https://github.com/tisnik/torch-examples/blob/master/image/19_dilate.lua</a></td></tr>
+<tr><td>20_erode.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/20_erode.lua">https://github.com/tisnik/torch-examples/blob/master/image/20_erode.lua</a></td></tr>
+</table>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>Stránka projektu Torch<br />
+<a href="http://torch.ch/">http://torch.ch/</a>
+</li>
+
+<li>Torch: Serialization<br />
+<a href="https://github.com/torch/torch7/blob/master/doc/serialization.md">https://github.com/torch/torch7/blob/master/doc/serialization.md</a>
+</li>
+
+<li>Torch: modul image<br />
+<a href="https://github.com/torch/image/blob/master/README.md">https://github.com/torch/image/blob/master/README.md</a>
+</li>
+
+<li>Torch na GitHubu (několik repositářů)<br />
+<a href="https://github.com/torch">https://github.com/torch</a>
+</li>
+
+<li>Torch (machine learning), Wikipedia<br />
+<a href="https://en.wikipedia.org/wiki/Torch_%28machine_learning%29">https://en.wikipedia.org/wiki/Torch_%28machine_learning%29</a>
+</li>
+
+<li>Torch Package Reference Manual<br />
+<a href="https://github.com/torch/torch7/blob/master/README.md">https://github.com/torch/torch7/blob/master/README.md</a>
+</li>
+
+<li>Torch Cheatsheet<br />
+<a href="https://github.com/torch/torch7/wiki/Cheatsheet">https://github.com/torch/torch7/wiki/Cheatsheet</a>
+</li>
+
+<li>Plotting with Torch7<br />
+<a href="http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/">http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/</a>
+</li>
+
+<li>Plotting Package Manual with Gnuplot<br />
+<a href="https://github.com/torch/gnuplot/blob/master/README.md">https://github.com/torch/gnuplot/blob/master/README.md</a>
+</li>
+
+<li>An Introduction to Tensors<br />
+<a href="https://math.stackexchange.com/questions/10282/an-introduction-to-tensors">https://math.stackexchange.com/questions/10282/an-introduction-to-tensors</a>
+</li>
+
+<li>Gaussian filter<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_filter">https://en.wikipedia.org/wiki/Gaussian_filter</a>
+</li>
+
+<li>Gaussian function<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_function">https://en.wikipedia.org/wiki/Gaussian_function</a>
+</li>
+
+<li>Laplacian/Laplacian of Gaussian<br />
+<a href="http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm">http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm</a>
+</li>
+
+<li>Odstranění šumu<br />
+<a href="https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu">https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu</a>
+</li>
+
+<li>Binary image<br />
+<a href="https://en.wikipedia.org/wiki/Binary_image">https://en.wikipedia.org/wiki/Binary_image</a>
+</li>
+
+<li>Erosion (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Erosion_%28morphology%29">https://en.wikipedia.org/wiki/Erosion_%28morphology%29</a>
+</li>
+
+<li>Dilation (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Dilation_%28morphology%29">https://en.wikipedia.org/wiki/Dilation_%28morphology%29</a>
+</li>
+
+<li>Mathematical morphology<br />
+<a href="https://en.wikipedia.org/wiki/Mathematical_morphology">https://en.wikipedia.org/wiki/Mathematical_morphology</a>
+</li>
+
+<li>Cvičení 10 - Morfologické operace<br />
+<a href="http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php">http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php</a>
+</li>
+
+<li>Differences between a matrix and a tensor<br />
+<a href="https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor">https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor</a>
+</li>
+
+<li>Qualitatively, what is the difference between a matrix and a tensor?<br />
+<a href="https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?">https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?</a>
+</li>
+
+<li>BLAS (Basic Linear Algebra Subprograms)<br />
+<a href="http://www.netlib.org/blas/">http://www.netlib.org/blas/</a>
+</li>
+
+<li>Basic Linear Algebra Subprograms (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms">https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms</a>
+</li>
+
+<li>Comparison of deep learning software<br />
+<a href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software</a>
+</li>
+
+<li>TensorFlow<br />
+<a href="https://www.tensorflow.org/">https://www.tensorflow.org/</a>
+</li>
+
+<li>Caffe2 (A New Lightweight, Modular, and Scalable Deep Learning Framework)<br />
+<a href="https://caffe2.ai/">https://caffe2.ai/</a>
+</li>
+
+<li>PyTorch<br />
+<a href="http://pytorch.org/">http://pytorch.org/</a>
+</li>
+
+<li>Seriál o programovacím jazyku Lua<br />
+<a href="http://www.root.cz/serialy/programovaci-jazyk-lua/">http://www.root.cz/serialy/programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (2)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (3)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (4)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (5 - tabulky a pole)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (6 - překlad programových smyček do mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (7 - dokončení popisu mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (8 - základní vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (9 - další vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (10 - JIT překlad do nativního kódu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (11 - JIT překlad do nativního kódu procesorů s architekturami x86 a ARM)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (12 - překlad operací s reálnými čísly)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/</a>
+</li>
+
+<li>Lua Profiler (GitHub)<br />
+<a href="https://github.com/luaforge/luaprofiler">https://github.com/luaforge/luaprofiler</a>
+</li>
+
+<li>Lua Profiler (LuaForge)<br />
+<a href="http://luaforge.net/projects/luaprofiler/">http://luaforge.net/projects/luaprofiler/</a>
+</li>
+
+<li>ctrace<br />
+<a href="http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</li>
+
+<li>The Lua VM, on the Web<br />
+<a href="https://kripken.github.io/lua.vm.js/lua.vm.js.html">https://kripken.github.io/lua.vm.js/lua.vm.js.html</a>
+</li>
+
+<li>Lua.vm.js REPL<br />
+<a href="https://kripken.github.io/lua.vm.js/repl.html">https://kripken.github.io/lua.vm.js/repl.html</a>
+</li>
+
+<li>lua2js<br />
+<a href="https://www.npmjs.com/package/lua2js">https://www.npmjs.com/package/lua2js</a>
+</li>
+
+<li>lua2js na GitHubu<br />
+<a href="https://github.com/basicer/lua2js-dist">https://github.com/basicer/lua2js-dist</a>
+</li>
+
+<li>Lua (programming language)<br />
+<a href="http://en.wikipedia.org/wiki/Lua_(programming_language)">http://en.wikipedia.org/wiki/Lua_(programming_language)</a>
+</li>
+
+<li>LuaJIT 2.0 SSA IR
+<a href="http://wiki.luajit.org/SSA-IR-2.0">http://wiki.luajit.org/SSA-IR-2.0</a>
+</li>
+
+<li>The LuaJIT Project<br />
+<a href="http://luajit.org/index.html">http://luajit.org/index.html</a>
+</li>
+
+<li>LuaJIT FAQ<br />
+<a href="http://luajit.org/faq.html">http://luajit.org/faq.html</a>
+</li>
+
+<li>LuaJIT Performance Comparison<br />
+<a href="http://luajit.org/performance.html">http://luajit.org/performance.html</a>
+</li>
+
+<li>LuaJIT 2.0 intellectual property disclosure and research opportunities<br />
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908">http://article.gmane.org/gmane.comp.lang.lua.general/58908</a>
+</li>
+
+<li>LuaJIT Wiki<br />
+<a href="http://wiki.luajit.org/Home">http://wiki.luajit.org/Home</a>
+</li>
+
+<li>LuaJIT 2.0 Bytecode Instructions<br />
+<a href="http://wiki.luajit.org/Bytecode-2.0">http://wiki.luajit.org/Bytecode-2.0</a>
+</li>
+
+<li>Programming in Lua (first edition)<br />
+<a href="http://www.lua.org/pil/contents.html">http://www.lua.org/pil/contents.html</a>
+</li>
+
+<li>Lua 5.2 sources<br />
+<a href="http://www.lua.org/source/5.2/">http://www.lua.org/source/5.2/</a>
+</li>
+
+<li>REPL<br />
+<a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop</a>
+</li>
+
+<li>The LLVM Compiler Infrastructure<br />
+<a href="http://llvm.org/ProjectsWithLLVM/">http://llvm.org/ProjectsWithLLVM/</a>
+</li>
+
+<li>clang: a C language family frontend for LLVM<br />
+<a href="http://clang.llvm.org/">http://clang.llvm.org/</a>
+</li>
+
+<li>LLVM Backend ("Fastcomp")<br />
+<a href="http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend">http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend</a>
+</li>
+
+<li>Lambda the Ultimate: Coroutines in Lua,<br />
+<a href="http://lambda-the-ultimate.org/node/438">http://lambda-the-ultimate.org/node/438</a>
+</li>
+
+<li>Coroutines Tutorial,<br />
+<a href="http://lua-users.org/wiki/CoroutinesTutorial">http://lua-users.org/wiki/CoroutinesTutorial</a>
+</li>
+
+<li>Lua Coroutines Versus Python Generators,<br />
+<a href="http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators">http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2017</small></p>
+</body>
+</html>
+

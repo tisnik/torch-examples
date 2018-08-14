@@ -1,0 +1,100 @@
+nn.Parallel {
+  input
+    |`-> (1): nn.Linear(3 -> 1)
+     `-> (2): nn.Sequential {
+           [input -> (1) -> (2) -> output]
+           (1): nn.Linear(3 -> 2)
+           (2): nn.Reshape(2x1)
+         }
+     ... -> output
+}
+-2.3182
+-1.5595
+-0.5659
+[torch.DoubleTensor of size 3]
+
+nn.Parallel {
+  input
+    |`-> (1): nn.Sequential {
+    |      [input -> (1) -> (2) -> (3) -> (4) -> output]
+    |      (1): nn.Linear(3 -> 10)
+    |      (2): nn.Tanh
+    |      (3): nn.Linear(10 -> 2)
+    |      (4): nn.Reshape(2x1)
+    |    }
+    |`-> (2): nn.Sequential {
+    |      [input -> (1) -> (2) -> (3) -> (4) -> output]
+    |      (1): nn.Linear(3 -> 10)
+    |      (2): nn.Tanh
+    |      (3): nn.Linear(10 -> 2)
+    |      (4): nn.Reshape(2x1)
+    |    }
+    |`-> (3): nn.Sequential {
+    |      [input -> (1) -> (2) -> (3) -> (4) -> output]
+    |      (1): nn.Linear(3 -> 10)
+    |      (2): nn.Tanh
+    |      (3): nn.Linear(10 -> 2)
+    |      (4): nn.Reshape(2x1)
+    |    }
+     `-> (4): nn.Sequential {
+           [input -> (1) -> (2) -> (3) -> (4) -> output]
+           (1): nn.Linear(3 -> 10)
+           (2): nn.Tanh
+           (3): nn.Linear(10 -> 2)
+           (4): nn.Reshape(2x1)
+         }
+     ... -> output
+}
+-0.1663
+ 0.0046
+ 0.3299
+ 0.0677
+-0.1808
+ 0.9577
+ 0.0019
+-0.3650
+[torch.DoubleTensor of size 8x1]
+
+nn.Sequential {
+  [input -> (1) -> (2) -> (3) -> (4) -> (5) -> output]
+  (1): nn.Parallel {
+    input
+      |`-> (1): nn.Sequential {
+      |      [input -> (1) -> (2) -> (3) -> (4) -> output]
+      |      (1): nn.Linear(3 -> 10)
+      |      (2): nn.Tanh
+      |      (3): nn.Linear(10 -> 2)
+      |      (4): nn.Reshape(2x1)
+      |    }
+      |`-> (2): nn.Sequential {
+      |      [input -> (1) -> (2) -> (3) -> (4) -> output]
+      |      (1): nn.Linear(3 -> 10)
+      |      (2): nn.Tanh
+      |      (3): nn.Linear(10 -> 2)
+      |      (4): nn.Reshape(2x1)
+      |    }
+      |`-> (3): nn.Sequential {
+      |      [input -> (1) -> (2) -> (3) -> (4) -> output]
+      |      (1): nn.Linear(3 -> 10)
+      |      (2): nn.Tanh
+      |      (3): nn.Linear(10 -> 2)
+      |      (4): nn.Reshape(2x1)
+      |    }
+       `-> (4): nn.Sequential {
+             [input -> (1) -> (2) -> (3) -> (4) -> output]
+             (1): nn.Linear(3 -> 10)
+             (2): nn.Tanh
+             (3): nn.Linear(10 -> 2)
+             (4): nn.Reshape(2x1)
+           }
+       ... -> output
+  }
+  (2): nn.View(8)
+  (3): nn.Linear(8 -> 10)
+  (4): nn.Tanh
+  (5): nn.Linear(10 -> 2)
+}
+-0.3605
+ 0.1274
+[torch.DoubleTensor of size 2]
+

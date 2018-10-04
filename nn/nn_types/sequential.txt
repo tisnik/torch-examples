@@ -1,0 +1,51 @@
+nn.Sequential {
+  [input -> (1) -> output]
+  (1): nn.Linear(3 -> 5)
+}
+-0.0781
+-0.2834
+-1.5152
+-0.9320
+-0.6043
+[torch.DoubleTensor of size 5]
+
+nn.Sequential {
+  [input -> (1) -> (2) -> output]
+  (1): nn.Linear(3 -> 10)
+  (2): nn.Linear(10 -> 5)
+}
+ 0.4888
+-0.0895
+ 0.4524
+ 0.3537
+-0.2042
+[torch.DoubleTensor of size 5]
+
+nn.Sequential {
+  [input -> (1) -> (2) -> (3) -> output]
+  (1): nn.Linear(3 -> 10)
+  (2): nn.Tanh
+  (3): nn.Linear(10 -> 5)
+}
+ 0.0158
+ 0.4635
+ 1.0134
+-0.3549
+ 0.3157
+[torch.DoubleTensor of size 5]
+
+nn.Sequential {
+  [input -> (1) -> (2) -> (3) -> (4) -> (5) -> output]
+  (1): nn.Linear(3 -> 10)
+  (2): nn.Tanh
+  (3): nn.Linear(10 -> 15)
+  (4): nn.Tanh
+  (5): nn.Linear(15 -> 5)
+}
+-0.3122
+ 0.1928
+-0.2401
+ 0.0737
+-0.0007
+[torch.DoubleTensor of size 5]
+

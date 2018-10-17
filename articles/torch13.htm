@@ -1,0 +1,1415 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Framework Torch: vylepšení klasifikace obrázků z databáze CIFAR-10</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Framework Torch: vylepšení klasifikace obrázků z databáze CIFAR-10</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>Dnes se s konvolučními sítěmi využívanými pro klasifikaci obrázků setkáme naposledy. Vylepšíme projekt pro klasifikaci obrázků z databáze CIFAR-10, ukážeme si vliv počtu trénovacích obrázků a počtu iterací na kvalitu odhadu sítě a také si ukážeme, jak je možné naučenou sít serializovat.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Framework Torch: vylepšení klasifikace obrázků z&nbsp;databáze CIFAR-10</a></p>
+<p><a href="#k02">2. Přidání dalších &bdquo;běžných&ldquo; vrstev neuronů</a></p>
+<p><a href="#k03">3. Změna konstruktoru neuronové sítě</a></p>
+<p><a href="#k04">4. Normalizace trénovacích a validačních obrázků</a></p>
+<p><a href="#k05">5. Normalizace v&nbsp;praxi</a></p>
+<p><a href="#k06">6. Výsledky validace pro pevně zadané parametry sítě</a></p>
+<p><a href="#k07">7. Variabilita parametrů při tréningu sítě: počet obrázků a počet iterací při učení</a></p>
+<p><a href="#k08">8. Vliv počtu obrázků v&nbsp;trénovací množině a počtu iterací</a></p>
+<p><a href="#k09">9. Serializace a deserializace natrénované neuronové sítě</a></p>
+<p><a href="#k10">10. Modul určený pro serializaci a deserializaci neuronové sítě</a></p>
+<p><a href="#k11">11. Hlavní skript projektu po všech provedených úpravách</a></p>
+<p><a href="#k12">12. Získání informací o vahách a biasech přiřazených neuronům nebo konvolučním vrstvám</a></p>
+<p><a href="#k13">13. Zobrazení a serializace vah konvoluční vrstvy</a></p>
+<p><a href="#k14">14. Rozměr tenzorů s&nbsp;vahami konvolučních vrstev</a></p>
+<p><a href="#k15">15. Repositář s&nbsp;demonstračním projektem</a></p>
+<p><a href="#k16">16. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Framework Torch: vylepšení klasifikace obrázků z&nbsp;databáze CIFAR-10</h2>
+
+<p>Dnešní článek o frameworku <i>Torch</i> je věnován poslednímu většímu
+projektu, v&nbsp;němž se budeme zabývat klasifikací obrázků s&nbsp;využitím
+konvolučních neuronových sítí. Nejprve vylepšíme základní architekturu
+neuronové sítě <a
+href="https://www.root.cz/clanky/framework-torch-klasifikace-objektu-na-obrazcich-z-realneho-sveta/">popsané
+minule</a>, řekneme si, jak lze snadno normalizovat barvové kanály trénovacích
+i validačních obrázků a také zjistíme, jaký vliv má počet trénovacích obrázků a
+počet iterací při tréningu na klasifikační schopnosti neuronové sítě. Také si
+ukážeme, jak lze (a to velmi snadno) naučenou síť serializovat a tak ji uchovat
+pro budoucí použití, popř.&nbsp;pro prohlížení parametrů (váhy, bias)
+jednotlivých konvolučních vrstev či běžných neuronů.</p>
+
+<img src="https://i.iinfo.cz/images/656/torch12-1.png" class="image-316905" alt="&#160;" width="569" height="659" />
+<p><i>Obrázek 1: Několik trénovacích obrázků s&nbsp;kočkami (kategorie
+<strong>cat</strong>). Obrázky mají velikost pouze 32&times;32 pixelů a
+pocházejí z&nbsp;databáze CIFAR-10.</i></p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Přidání dalších &bdquo;běžných&ldquo; vrstev neuronů</h2>
+
+<p>Prvním krokem, který nám do jisté míry pomůže vylepšit vytvářenou konvoluční
+neuronovou síť, je přidání dalších &bdquo;běžných&ldquo; vrstev neuronů.
+Připomeňme si, že konvoluční sítě většinou obsahují konvoluční vrstvy na
+začátku, kdežto na konci sítě se nachází běžné neurony s&nbsp;klasickými
+přechodovými funkcemi. Tyto vrstvy slouží jak pro převod naučených parametrů
+z&nbsp;konvolučních vrstev na výstupní tenzor, tak i pro zapamatování dalších
+informací zjištěných v&nbsp;rámci tréningu. Původně měla naše síť vlastně pouze
+jednu vrstvu běžných neuronů navíc, protože její struktura vypadala
+následovně:</p>
+
+<pre>
+Struktura neuronove site
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; (5) -&gt; (6) -&gt; (7) -&gt; (8) -&gt; (9) -&gt; (10) -&gt; output]
+  (1): nn.SpatialConvolution(3 -&gt; 64, 5x5)
+  (2): nn.Tanh
+  (3): nn.SpatialMaxPooling(2x2, 2,2)
+  (4): nn.SpatialConvolution(64 -&gt; 64, 5x5)
+  (5): nn.Tanh
+  (6): nn.SpatialMaxPooling(2x2, 2,2)
+  (7): nn.View(1600)
+  (8): nn.Linear(1600 -&gt; 100)
+  (9): nn.ReLU
+  (10): nn.Linear(100 -&gt; 10)
+}
+</pre>
+
+<p>&bdquo;Běžná&ldquo; vrstva neuronů je představována řádky 8 a 9, které jsou
+ve výpisu struktury sítě zvýrazněny. Před touto vrstvou se nachází struktura
+sloužící pro vytvoření pohledu z&nbsp;pooling vrstvy na 1600 výstupů, které
+vstupují do běžné vrstvy. Výsledek je přes aktivační funkci předán do poslední
+vrstvy, která provede namapování na tenzor s&nbsp;deseti prvky (protože
+klasifikujeme jen deset typů objektů).</p>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Změna konstruktoru neuronové sítě</h2>
+
+<p>Aby do neuronové sítě bylo možné snadno vložit další mezivrstvy, nepatrně
+upravíme konstruktor sítě, tj.&nbsp;funkci
+<strong>construct_neural_network</strong> z&nbsp;modulu
+<strong>nn_constructor.lua</strong>. Pro jednoduchost budou mít všechny
+vkládané mezivrstvy stejný počet neuronů předaný v&nbsp;parametru
+<strong>hidden_neurons</strong>. Počet nově vkládaných vrstev se nastavuje
+parametrem <strong>additional_layers</strong>:</p>
+
+<pre>
+function <strong>construct_neural_network</strong>(width, height, input_planes, middle_planes,
+                                  hidden_neurons, output_neurons,
+                                  convolution_kernel_size, pooling_size, pooling_step, additional_layers)
+    local network = nn.Sequential()
+&nbsp;
+    local size_x = calculate_size_after_convolution(width, middle_planes, convolution_kernel_size, pooling_size)
+    local size_y = calculate_size_after_convolution(height, middle_planes, convolution_kernel_size, pooling_size)
+&nbsp;
+    print("Size x: " .. size_x)
+    print("Size y: " .. size_y)
+&nbsp;
+    <i>-- prvni konvolucni vrstva ocekavajici na vstupu 3D tenzor</i>
+    <i>-- o velikosti:</i>
+    <i>-- INPUT_PLANES x vyska x sirka</i>
+    <i>--</i>
+    <i>-- vysledkem je 3D tenzor o velikosti:</i>
+    <i>-- MIDDLE_PLANES_1 x (vyska - CONVOLUTION_KERNEL_SIZE + 1) x (sirka - CONVOLUTION_KERNEL_SIZE + 1) </i>
+    network:add(nn.SpatialConvolution(input_planes, middle_planes[1], convolution_kernel_size, convolution_kernel_size))
+&nbsp;
+    <i>-- nyni mame mezivysledky MIDDLE_PLANES_1 x (vyska-5+1) x (sirka-5+1)</i>
+&nbsp;
+    <i>-- nelinearni funkce</i>
+    network:add(nn.Tanh())
+&nbsp;
+    <i>-- hledani maxima v regionech o velikosti 2x2 pixely</i>
+    <i>-- s krokem nastavenym na 2 pixely v horizontalnim i 2 pixely ve vertikalnim smeru</i>
+    network:add(nn.SpatialMaxPooling(pooling_size, pooling_size, pooling_step, pooling_step))
+&nbsp;
+    <i>-- druha konvolucni vrstva ocekavajici na vstupu 3D tenzor</i>
+    <i>-- o velikosti MIDDLE_PLANES_1 x vyska x sirka</i>
+    network:add(nn.SpatialConvolution(middle_planes[1], middle_planes[2], convolution_kernel_size, convolution_kernel_size))
+&nbsp;
+    <i>-- nelinearni funkce</i>
+    network:add(nn.Tanh())
+&nbsp;
+    <i>-- opetovne hledani maxima v regionech o velikosti 2x2 pixely</i>
+    <i>-- s krokem nastavenym na 2 pixely v horizontalnim i 2 pixely ve vertikalnim smeru</i>
+    network:add(nn.SpatialMaxPooling(pooling_size, pooling_size, pooling_step, pooling_step))
+&nbsp;
+    <i>-- zmena tvaru: z 3D tenzoru AxBxC na 1D tenzor s A*B*C elementy</i>
+    network:add(nn.View(middle_planes[2]*size_x*size_y))
+&nbsp;
+    <i>-- bezne vrstvy, jak je jiz zname</i>
+    network:add(nn.Linear(middle_planes[2]*size_x*size_y, hidden_neurons))
+&nbsp;
+    <i>-- pridana nelinearni funkce</i>
+    network:add(nn.ReLU())
+&nbsp;
+    <strong>if additional_layers then</strong>
+        <strong>for i = 1, additional_layers do</strong>
+        <i>-- bezne vrstvy, jak je jiz zname</i>
+        <strong>network:add(nn.Linear(hidden_neurons, hidden_neurons))</strong>
+&nbsp;
+        <i>-- pridana nelinearni funkce</i>
+        <strong>network:add(nn.ReLU())</strong>
+        <strong>end</strong>
+    <strong>end</strong>
+&nbsp;
+    <i>-- bezne vrstvy, jak je jiz zname</i>
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Struktura neuronové sítě, do níž není vložena žádná další mezivrstva:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; (5) -&gt; (6) -&gt; (7) -&gt; (8) -&gt; (9) -&gt; (10) -&gt; output]
+  (1): nn.SpatialConvolution(3 -&gt; 64, 5x5)
+  (2): nn.Tanh
+  (3): nn.SpatialMaxPooling(2x2, 2,2)
+  (4): nn.SpatialConvolution(64 -&gt; 64, 5x5)
+  (5): nn.Tanh
+  (6): nn.SpatialMaxPooling(2x2, 2,2)
+  (7): nn.View(1600)
+  (8): nn.Linear(1600 -&gt; 100)
+  (9): nn.ReLU
+  (10): nn.Linear(100 -&gt; 10)
+}
+</pre>
+
+<p>Struktura neuronové sítě s&nbsp;jednou novou mezivrstvou:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; (5) -&gt; (6) -&gt; (7) -&gt; (8) -&gt; (9) -&gt; (10) -&gt; (11) -&gt; (12) -&gt; output]
+  (1): nn.SpatialConvolution(3 -&gt; 64, 5x5)
+  (2): nn.Tanh
+  (3): nn.SpatialMaxPooling(2x2, 2,2)
+  (4): nn.SpatialConvolution(64 -&gt; 64, 5x5)
+  (5): nn.Tanh
+  (6): nn.SpatialMaxPooling(2x2, 2,2)
+  (7): nn.View(1600)
+  (8): nn.Linear(1600 -&gt; 100)
+  (9): nn.ReLU
+  (10): nn.Linear(100 -&gt; 100)
+  (11): nn.ReLU
+  (12): nn.Linear(100 -&gt; 10)
+}
+</pre>
+
+<p>Struktura neuronové sítě se dvěma novými mezivrstvami:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; (5) -&gt; (6) -&gt; (7) -&gt; (8) -&gt; (9) -&gt; (10) -&gt; (11) -&gt; (12) -&gt; (13) -&gt; (14) -&gt; output]
+  (1): nn.SpatialConvolution(3 -&gt; 64, 5x5)
+  (2): nn.Tanh
+  (3): nn.SpatialMaxPooling(2x2, 2,2)
+  (4): nn.SpatialConvolution(64 -&gt; 64, 5x5)
+  (5): nn.Tanh
+  (6): nn.SpatialMaxPooling(2x2, 2,2)
+  (7): nn.View(1600)
+  (8): nn.Linear(1600 -&gt; 100)
+  (9): nn.ReLU
+  (10): nn.Linear(100 -&gt; 100)
+  (11): nn.ReLU
+  (12): nn.Linear(100 -&gt; 100)
+  (13): nn.ReLU
+  (14): nn.Linear(100 -&gt; 10)
+}
+</pre>
+
+<p>Struktura neuronové sítě se třemi novými mezivrstvami:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; (5) -&gt; (6) -&gt; (7) -&gt; (8) -&gt; (9) -&gt; (10) -&gt; (11) -&gt; (12) -&gt; (13) -&gt; (14) -&gt; (15) -&gt; (16) -&gt; output]
+  (1): nn.SpatialConvolution(3 -&gt; 64, 5x5)
+  (2): nn.Tanh
+  (3): nn.SpatialMaxPooling(2x2, 2,2)
+  (4): nn.SpatialConvolution(64 -&gt; 64, 5x5)
+  (5): nn.Tanh
+  (6): nn.SpatialMaxPooling(2x2, 2,2)
+  (7): nn.View(1600)
+  (8): nn.Linear(1600 -&gt; 100)
+  (9): nn.ReLU
+  (10): nn.Linear(100 -&gt; 100)
+  (11): nn.ReLU
+  (12): nn.Linear(100 -&gt; 100)
+  (13): nn.ReLU
+  (14): nn.Linear(100 -&gt; 100)
+  (15): nn.ReLU
+  (16): nn.Linear(100 -&gt; 10)
+}
+</pre>
+
+<p>Struktura neuronové sítě se čtyřmi novými mezivrstvami:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; (5) -&gt; (6) -&gt; (7) -&gt; (8) -&gt; (9) -&gt; (10) -&gt; (11) -&gt; (12) -&gt; (13) -&gt; (14) -&gt; (15) -&gt; (16) -&gt; (17) -&gt; (18) -&gt; output]
+  (1): nn.SpatialConvolution(3 -&gt; 64, 5x5)
+  (2): nn.Tanh
+  (3): nn.SpatialMaxPooling(2x2, 2,2)
+  (4): nn.SpatialConvolution(64 -&gt; 64, 5x5)
+  (5): nn.Tanh
+  (6): nn.SpatialMaxPooling(2x2, 2,2)
+  (7): nn.View(1600)
+  (8): nn.Linear(1600 -&gt; 100)
+  (9): nn.ReLU
+  (10): nn.Linear(100 -&gt; 100)
+  (11): nn.ReLU
+  (12): nn.Linear(100 -&gt; 100)
+  (13): nn.ReLU
+  (14): nn.Linear(100 -&gt; 100)
+  (15): nn.ReLU
+  (16): nn.Linear(100 -&gt; 100)
+  (17): nn.ReLU
+  (18): nn.Linear(100 -&gt; 10)
+}
+</pre>
+
+<p>V&nbsp;dalších příkladech použijeme právě čtyři nové mezivrstvy.</p>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Normalizace trénovacích a validačních obrázků</h2>
+
+<p>Další úprava provedená v&nbsp;projektu spočívá v&nbsp;tom, že trénovací i
+validační obrázky budeme normalizovat, a to samostatně pro každý barvový kanál.
+Před vlastní normalizací se spočítá průměr a směrodatná odchylka jednotlivých
+barvových složek (pro všechny obrázky v&nbsp;množině), následně se provede
+normalizace trénovacích obrázků a potom i normalizace obrázků validačních.
+Výsledkem bude tenzor, který sice bude obsahovat trénovací popř.&nbsp;validační
+obrázky, ty však již nebudou snadno zobrazitelné, neboť prvky tenzorů budou
+nabývat hodnot mezi mezními hodnotami -1 až 1 (vlivem zaokrouhlovacích chyb
+ovšem mohou tuto mez překročit). Normalizaci se obecně doporučuje provádět i
+pro jiné typy neuronových sítí.</p>
+
+<p>Výpočet průměru a směrodatné odchylky je ve skutečnosti velmi jednoduchý,
+protože můžeme použít <a
+href="https://www.root.cz/clanky/torch-framework-pro-strojove-uceni-i-pro-zpracovani-vektoru-a-tenzoru-1/#k06">selektory</a>
+vybírající konkrétní dimenzi ze čtyřrozměrného tenzoru, který představuje
+vstupní a validační data (počet obrázků &times; počet barvových rovin &times;
+počet řádků &times; počet pixelů na řádku). Na takto zúžený výběr pak můžeme
+zavolat metody <strong>tensor:mean()</strong> a <strong>tensor:std()</strong>,
+které již výpočet provedou za nás (tyto funkce se aplikují na vybrané
+prvky/pohled, což je <a
+href="https://www.root.cz/clanky/framework-torch-serializace-a-deserializace-tenzoru-prace-s-grafy/#k04">taktéž
+tenzor</a>):</p>
+
+<pre>
+function <strong>calculate_mean_and_sd</strong>(training_set, channels)
+    <i>-- prumer</i>
+    local mean = {}
+&nbsp;
+    <i>-- smerodatna odchylka</i>
+    local sd = {}
+&nbsp;
+    for channel = 1,channels do
+        mean[channel] = training_set.data[{ {}, {channel}, {}, {}  }]:mean()
+        sd[channel] = training_set.data[{ {}, {channel}, {}, {}  }]:std()
+    end
+&nbsp;
+    return mean, sd
+end
+</pre>
+
+<p>Další funkce na základě průměru a směrodatné odchylky provede normalizaci
+dat. Samozřejmě opět musíme normalizaci provádět po jednotlivých barvových
+kanálech:</p>
+
+<pre>
+function <strong>normalize_data</strong>(training_set, mean, sd, channels)
+    for channel = 1,channels do
+        training_set.data[{ {}, {channel}, {}, {}  }]:add(-mean[channel])
+        training_set.data[{ {}, {channel}, {}, {}  }]:div(sd[channel])
+    end
+end
+</pre>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Normalizace v&nbsp;praxi</h2>
+
+<p>Zkusme si tedy nejprve načíst trénovací data, následně vypočítat průměr a
+směrodatnou jednotlivých barvových kanálů, provést normalizaci dat
+v&nbsp;jednotlivých kanálech a opět (pro již normalizovaná data) vypočítat
+průměr a směrodatnou odchylku. Všechny tyto operace provedou následující řádky
+skriptu. Povšimněte si, že původně celočíselné hodnoty (pixelů) musíme převést
+na typ <i>double</i>, jinak by výpočty nebylo možné provést (došlo by ke vzniku
+běhové chyby):</p>
+
+<pre>
+input_training_set = torch.load('cifar10-train.t7')
+input_training_set.data = input_training_set.data:double()
+&nbsp;
+print("Prumer a standardni odchylka hodnot pixelu pred normalizaci")
+<i>-- spocitat prumer a smerodatnou odchylku pro vsechny kanaly</i>
+mean, sd = calculate_mean_and_sd(input_training_set, CHANNELS)
+print_mean_and_sd(mean, sd, CHANNELS)
+print()
+&nbsp;
+<i>-- normalizace trenovacich dat</i>
+normalize_data(input_training_set, mean, sd, CHANNELS)
+&nbsp;
+print("Prumer a standardni odchylka hodnot pixelu po normalizaci")
+<i>-- nyni by mel byt prumer prakticky nulovy a odchylka rovna jedne</i>
+new_mean, new_sd = calculate_mean_and_sd(input_training_set, CHANNELS)
+print_mean_and_sd(new_mean, new_sd, CHANNELS)
+print()
+</pre>
+
+<p>Výsledky před a po normalizaci budou následující:</p>
+
+<pre>
+Prumer a standardni odchylka hodnot pixelu pred normalizaci
+&nbsp;
+Kanal: 1
+    prumer:   125.83175029297
+    odchylka: 63.143400842608
+Kanal: 2
+    prumer:   123.26066621094
+    odchylka: 62.369209019077
+Kanal: 3
+    prumer:   114.03068681641
+    odchylka: 66.965808411077
+&nbsp;
+&nbsp;
+&nbsp;
+Prumer a standardni odchylka hodnot pixelu po normalizaci
+&nbsp;
+Kanal: 1
+    prumer:   1.0727918705287e-14
+    odchylka: 1.0000000000011
+Kanal: 2
+    prumer:   -6.6096161096402e-15
+    odchylka: 0.99999999998982
+Kanal: 3
+    prumer:   1.381815042706e-14
+    odchylka: 1.0000000000009
+</pre>
+
+<p>Vidíme, že po normalizaci se průměr hodnot v&nbsp;jednotlivých kanálech
+skutečně blíží nule a směrodatná odchylka zase jedničce, což je přesně ten
+výsledek, který jsme očekávali.</p>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Výsledky validace pro pevně zadané parametry sítě</h2>
+
+<p>Podívejme se nyní na to, jak se úprava parametrů neuronové sítě projevila
+v&nbsp;praxi, tj.&nbsp;na výsledcích rozpoznávání. Použijeme čtyři nové
+mezivrstvy sítě, počet iterací bude nastaven na hodnotu 500 (což je ještě
+relativně nízká hodnota) a počet trénovacích obrázků bude nastaven na 1000
+(opět poměrně nízká hodnota &ndash; viz navazující kapitoly). První výsledky
+jsou byly získány tak, že se po natrénování sítě 1000 obrázky použilo dalších
+3000 obrázků, ovšem ze stejné množiny. Nejedná se tedy o korektní validaci, ale
+spíš o test, jestli je &bdquo;mozková kapacita&ldquo; (celkový počet
+měnitelných vah neuronů) vůbec dostatečný:</p>
+
+<pre>
+...
+...
+...
+deer       deer      true    0.57292878624107
+truck      truck     true    0.65336862019788
+frog       ship      false   0.55004974851733
+bird       cat       false   0.27070009703079
+automobile truck     false   0.92400873005579
+deer       deer      true    0.50868852545658
+airplane   bird      false   0.36460117462903
+frog       cat       false   0.48030977276765
+frog       frog      true    0.57933830233959
+deer       airplane  false   0.72151339786828
+---------------------
+Errors: 550 out of 3000 images
+Error rate: 18.333333333333%
+Success rate: 81.66666666666%
+</pre>
+
+<p>Výsledek je velmi slušný a pro reálná trénovací data se k&nbsp;němu budeme
+snažit přiblížit.</p>
+
+<p>Poznámka: numerické hodnoty jsou vypsány bez explicitního formátování, proto
+mají tak divný tvar (x/3).</p>
+
+<p>Pro reálné testovací obrázky dostaneme horší hodnoty, což se ale dalo
+očekávat, protože pouhých 1000 trénovacích obrázků je pro tréning databáze
+CIFAR-10 málo. Ovšem na druhou stranu nejsou výsledné hodnoty zcela špatné,
+protože si musíme uvědomit, že při náhodných odpovědích by byla úspěšnost jen
+10% (navíc se odhad sítě od minulé verze zlepšil):</p>
+
+<pre>
+...
+...
+...
+dog        dog       true    0.67961377184359
+dog        deer      false   1.0299916596353
+deer       bird      false   0.42982775116141
+cat        dog       false   0.69753079601915
+deer       truck     false   0.36139970707089
+airplane   airplane  true    0.69419025612601
+ship       truck     false   0.37459072060959
+deer       bird      false   0.42741501460605
+ship       ship      true    0.59149941480064
+bird       dog       false   0.48824661801863
+dog        bird      false   0.40314882720612
+frog       deer      false   0.45798343305038
+---------------------
+Errors: 1624 out of 3000 images
+Error rate: 54.133333333333%
+Success rate: 45.866666666%
+</pre>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Variabilita parametrů při tréningu sítě: počet obrázků a počet iterací při učení</h2>
+
+<p>Kromě samotné struktury sítě má velký vliv na její klasifikační schopnosti
+celkový počet trénovacích obrázků a také počet iterací provedených při
+tréninku. Proto tyto dva parametry, které byly původně konstantami, budeme
+načítat z&nbsp;příkazového řádku, například následujícím způsobem (bez dalších
+doplňkových kontrol):</p>
+
+<pre>
+<i>-- parametry pro uceni neuronove site</i>
+MAX_ITERATION = tonumber(arg[1])
+LEARNING_RATE = 0.005
+&nbsp;
+MAX_SIZE_OF_TRAINING_SET = tonumber(arg[2])
+MAX_SIZE_OF_VALIDATION_SET = 10000
+</pre>
+
+<p>Celý skript (hlavní modul) projektu nyní bude vypadat následovně:</p>
+
+<pre>
+require("nn")
+require("image")
+require("gnuplot")
+&nbsp;
+require("image_lib/image_writer")
+&nbsp;
+require("nn/nn_constructor")
+require("nn/nn_trainer")
+require("nn/nn_validators")
+require("nn/nn_serialization")
+&nbsp;
+require("utils/cifar_downloader")
+require("utils/classification_classes")
+require("utils/data_normalizer")
+&nbsp;
+&nbsp;
+<i>-- globalni nastaveni</i>
+CLASSES = 10
+&nbsp;
+&nbsp;
+<i>-- parametry obrazku</i>
+CHANNELS = 3
+WIDTH = 32
+HEIGHT = 32
+&nbsp;
+&nbsp;
+<i>-- parametry neuronove site</i>
+INPUT_PLANES = 3
+&nbsp;
+MIDDLE_PLANES = {64, 64}
+&nbsp;
+HIDDEN_NEURONS = 100
+OUTPUT_NEURONS = 10
+&nbsp;
+ADDITIONAL_LAYERS = 4
+&nbsp;
+<i>-- parametry konvolucni vrstvy</i>
+CONVOLUTION_KERNEL_SIZE = 5
+&nbsp;
+<i>-- parametry pooling vrstvy</i>
+POOLING_SIZE = 2
+POOLING_STEP = 2
+&nbsp;
+<i>-- parametry pro uceni neuronove site</i>
+MAX_ITERATION = tonumber(arg[1])
+LEARNING_RATE = 0.005
+&nbsp;
+MAX_SIZE_OF_TRAINING_SET = tonumber(arg[2])
+MAX_SIZE_OF_VALIDATION_SET = 10000
+&nbsp;
+setup_cifar_dataset(original_data_address, zip_file_name)
+&nbsp;
+input_training_set = torch.load('cifar10-train.t7')
+input_training_set.data = input_training_set.data:double()
+&nbsp;
+print("Prumer a standardni odchylka hodnot pixelu pred normalizaci")
+<i>-- spocitat prumer a smerodatnou odchylku pro vsechny kanaly</i>
+mean, sd = calculate_mean_and_sd(input_training_set, CHANNELS)
+print_mean_and_sd(mean, sd, CHANNELS)
+print()
+&nbsp;
+<i>-- normalizace trenovacich dat</i>
+normalize_data(input_training_set, mean, sd, CHANNELS)
+&nbsp;
+print("Prumer a standardni odchylka hodnot pixelu po normalizaci")
+<i>-- nyni by mel byt prumer prakticky nulovy a odchylka rovna jedne</i>
+new_mean, new_sd = calculate_mean_and_sd(input_training_set, CHANNELS)
+print_mean_and_sd(new_mean, new_sd, CHANNELS)
+print()
+&nbsp;
+<i>--write_training_images_with_label(input_training_set, "cat")</i>
+<i>--write_training_images_with_label(input_training_set, "truck")</i>
+&nbsp;
+print("Struktura vstupnich dat")
+print(input_training_set.data:size())
+&nbsp;
+training_data = prepare_training_data(input_training_set, MAX_SIZE_OF_TRAINING_SET)
+&nbsp;
+&nbsp;
+network = construct_neural_network(WIDTH, HEIGHT, INPUT_PLANES, MIDDLE_PLANES,
+                                   HIDDEN_NEURONS, OUTPUT_NEURONS,
+                                   CONVOLUTION_KERNEL_SIZE, POOLING_SIZE, POOLING_STEP,
+                                   ADDITIONAL_LAYERS)
+&nbsp;
+print("Struktura neuronove site")
+print(network)
+train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+&nbsp;
+serialize_nn(network)
+&nbsp;
+&nbsp;
+validation_set = torch.load('cifar10-test.t7')
+<i>--validation_set = torch.load('cifar10-train.t7')</i>
+&nbsp;
+validation_set.data = validation_set.data:double()
+<i>-- normalizace validacnich dat</i>
+normalize_data(validation_set, mean, sd, CHANNELS)
+&nbsp;
+validate_neural_network(network, validation_set, mean, sd, MAX_SIZE_OF_VALIDATION_SET)
+</pre>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Vliv počtu obrázků v&nbsp;trénovací množině a počtu iterací</h2>
+
+<p>Pro zjištění, jaký vliv má počet obrázků v&nbsp;trénovací množině i celkový
+počet iterací při tréningu sítě, si připravíme jednoduchý shell skript, který
+bude náš projekt volat s&nbsp;různými parametry. Výsledky se budou ukládat do
+pomocných textových souborů. Skript může vypadat například takto:</p>
+
+<pre>
+max_iterations="10 20 50 100 200 500 1000 2000 5000"
+training_set_sizes="10 20 50 100 200 500 1000 2000 5000 10000"
+&nbsp;
+for max_iteration in $max_iterations
+do
+    for training_set_size in $training_set_sizes
+    do
+        th cifar_data_classificator.lua $max_iteration $training_set_size &gt; "${max_iteration}_${training_set_size}.txt"
+    done
+done
+</pre>
+
+<p>Výsledky validace sítě, tj.&nbsp;procento úspěšně
+rozpoznaných/klasifikovaných obrázků, jsou uvedeny v&nbsp;následující tabulce.
+Ideální by samozřejmě bylo dosažení stoprocentní úspěšnosti, ovšem ani zde
+prezentované výsledky (pravý dolní roh) nejsou vůbec špatné s&nbsp;ohledem na
+již minule zmiňovanou kvalitu a variabilitu vstupních obrázků:</p>
+
+<table style="text-align:right">
+<tr><th>Training set/Max iter.</th><th>10</th><th>20</th><th>50</th><th>100</th><th>200</th><th>500</th><th>1000</th><th>2000</th><th>5000</th><th>10000</th></tr>
+<tr><th>10</th><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>12%</td><td>20%</td><td>27%</td><td>40%</td></tr>
+<tr><th>20</th><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>18%</td><td>24%</td><td>40%</td><td>52%</td></tr>
+<tr><th>50</th><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>10%</td><td>20%</td><td>26%</td><td>39%</td><td>52%</td><td>53%</td></tr>
+<tr><th>100</th><td>10%</td><td>10%</td><td>11%</td><td>10%</td><td>11%</td><td>31%</td><td>38%</td><td>43%</td><td>49%</td><td>54%</td></tr>
+<tr><th>200</th><td>10%</td><td>10%</td><td>11%</td><td>14%</td><td>23%</td><td>34%</td><td>37%</td><td>41%</td><td>48%</td><td>52%</td></tr>
+<tr><th>500</th><td>10%</td><td>10%</td><td>19%</td><td>26%</td><td>32%</td><td>35%</td><td>40%</td><td>*</td><td>*</td><td>*</td></tr>
+<tr><th>1000</th><td>10%</td><td>15%</td><td>19%</td><td>22%</td><td>26%</td><td>34%</td><td>*</td><td>*</td><td>*</td><td>*</td></tr>
+<tr><th>2000</th><td>15%</td><td>18%</td><td>20%</td><td>22%</td><td>27%</td><td>34%</td><td>*</td><td>*</td><td>*</td><td>*</td></tr>
+</table>
+
+<p>Poznámka: vyšší hodnoty iterací i počtu trénovacích obrázků již naráží na
+výkonnostní limity současných mikroprocesorů (tréning trvá desítky minut),
+takže je výhodnější výpočty provádět přes CUDA na grafickém akcelerátoru.</p>
+
+<p>Zajímavé jsou výsledky v&nbsp;trojúhelníku v&nbsp;levém horním rohu, které
+ukazují, že úspěšnost klasifikace dosáhla 10%. Důvod pro toto přesné číslo je
+jednoduchý &ndash; neuronová síť je v&nbsp;těchto případech natrénována tak
+<i>špatně</i>, že objekty u všech obrázků klasifikuje stejně, například vrací
+&bdquo;automobil&ldquo; pro všech 10000 validačních obrázků. A vzhledem
+k&nbsp;tomu, že každý typ objektu se ve validačních obrázcích vyskytuje
+s&nbsp;četností 10%, bude síť úspěšná přesně v&nbsp;těchto deseti procentech.
+Při větším natrénování sítě samozřejmě dostaneme i lepší výsledky.</p>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Serializace a deserializace natrénované neuronové sítě</h2>
+
+<p>S&nbsp;principem serializace a deserializace objektů ve frameworku Torch
+jsme se již seznámili <a
+href="https://www.root.cz/clanky/framework-torch-serializace-a-deserializace-tenzoru-prace-s-grafy/">v&nbsp;jednom
+z&nbsp;úvodních článků</a> tohoto seriálu. Serializovat je samozřejmě možné i
+samotnou neuronovou síť, ať již před jejím tréninkem (potom bude obsahovat
+náhodné hodnoty), nebo po tréninku, což je praktičtější a mnohem užitečnější.
+Úprava hlavního skriptu projektu takovým způsobem, aby se neuronová síť po
+natrénování uložila na disk v&nbsp;čitelné podobě, je relativně snadná, což
+ukazuje následující fragment kódu (nejedná se o celý skript, zobrazena je pouze
+jeho změněná část):</p>
+
+<pre>
+<i>-- globalni nastaveni</i>
+USE_SERIALIZED_NN = false
+&nbsp;
+if not USE_SERIALIZED_NN then
+    network = construct_neural_network(WIDTH, HEIGHT, INPUT_PLANES, MIDDLE_PLANES,
+                                       HIDDEN_NEURONS, OUTPUT_NEURONS,
+                                       CONVOLUTION_KERNEL_SIZE, POOLING_SIZE, POOLING_STEP,
+                                       ADDITIONAL_LAYERS)
+&nbsp;
+    print("Struktura neuronove site")
+    print(network)
+    train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+&nbsp;
+    <strong>serialize_nn</strong>(network)
+else
+    network = <strong>deserialize_nn</strong>()
+end
+</pre>
+
+<p>Pokud je konstanta <strong>USE_SERIALIZED_NN</strong> nastavena na
+pravdivostní hodnotu <strong>false</strong> či <strong>nil</strong>, bude síť
+zkonstruována a natrénována tak, jak to již známe z&nbsp;předchozích kapitol.
+Posléze se serializuje na disk do čitelného (textového, ASCII) souboru pro
+pozdější použití. Pokud je naopak konstanta <strong>USE_SERIALIZED_NN</strong>
+nastavena na <strong>true</strong>, bude síť deserializována.</p>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Modul určený pro serializaci a deserializaci neuronové sítě</h2>
+
+<p>Samotný modul určený pro serializaci a deserializaci neuronové sítě se
+jmenuje <strong>nn_serialization</strong> a nevyžaduje bližší popis, protože
+v&nbsp;něm použité metody <strong>writeObject()</strong> a
+<strong>readObject()</strong> již známe:</p>
+
+<pre>
+FILENAME = "neural_network.asc"
+&nbsp;
+function <strong>serialize_nn</strong>(network)
+    local fout = torch.DiskFile(FILENAME, "w"):ascii()
+    fout:writeObject(network)
+    fout:close()
+end
+&nbsp;
+function <strong>deserialize_nn</strong>()
+    local fin = torch.DiskFile(FILENAME, "r")
+    return fin:readObject()
+end
+</pre>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Hlavní skript projektu po všech provedených úpravách</h2>
+
+<p>Hlavní modul dnešního projektu bude po všech v&nbsp;něm provedených změnách
+vypadat následovně:</p>
+
+<pre>
+require("nn")
+require("image")
+require("gnuplot")
+&nbsp;
+require("image_lib/image_writer")
+&nbsp;
+require("nn/nn_constructor")
+require("nn/nn_trainer")
+require("nn/nn_validators")
+require("nn/nn_serialization")
+&nbsp;
+require("utils/cifar_downloader")
+require("utils/classification_classes")
+require("utils/data_normalizer")
+&nbsp;
+&nbsp;
+<i>-- globalni nastaveni</i>
+CLASSES = 10
+USE_SERIALIZED_NN = False
+&nbsp;
+&nbsp;
+<i>-- parametry obrazku</i>
+CHANNELS = 3
+WIDTH = 32
+HEIGHT = 32
+&nbsp;
+&nbsp;
+<i>-- parametry neuronove site</i>
+INPUT_PLANES = 3
+&nbsp;
+MIDDLE_PLANES = {64, 64}
+&nbsp;
+HIDDEN_NEURONS = 100
+OUTPUT_NEURONS = 10
+&nbsp;
+ADDITIONAL_LAYERS = 4
+&nbsp;
+<i>-- parametry konvolucni vrstvy</i>
+CONVOLUTION_KERNEL_SIZE = 5
+&nbsp;
+<i>-- parametry pooling vrstvy</i>
+POOLING_SIZE = 2
+POOLING_STEP = 2
+&nbsp;
+<i>-- parametry pro uceni neuronove site</i>
+MAX_ITERATION = tonumber(arg[1])
+LEARNING_RATE = 0.005
+&nbsp;
+MAX_SIZE_OF_TRAINING_SET = tonumber(arg[2])
+MAX_SIZE_OF_VALIDATION_SET = 10000
+&nbsp;
+setup_cifar_dataset(original_data_address, zip_file_name)
+&nbsp;
+input_training_set = torch.load('cifar10-train.t7')
+input_training_set.data = input_training_set.data:double()
+&nbsp;
+print("Prumer a standardni odchylka hodnot pixelu pred normalizaci")
+<i>-- spocitat prumer a smerodatnou odchylku pro vsechny kanaly</i>
+mean, sd = calculate_mean_and_sd(input_training_set, CHANNELS)
+print_mean_and_sd(mean, sd, CHANNELS)
+print()
+&nbsp;
+<i>-- normalizace trenovacich dat</i>
+normalize_data(input_training_set, mean, sd, CHANNELS)
+&nbsp;
+print("Prumer a standardni odchylka hodnot pixelu po normalizaci")
+<i>-- nyni by mel byt prumer prakticky nulovy a odchylka rovna jedne</i>
+new_mean, new_sd = calculate_mean_and_sd(input_training_set, CHANNELS)
+print_mean_and_sd(new_mean, new_sd, CHANNELS)
+print()
+&nbsp;
+<i>--write_training_images_with_label(input_training_set, "cat")</i>
+<i>--write_training_images_with_label(input_training_set, "truck")</i>
+&nbsp;
+print("Struktura vstupnich dat")
+print(input_training_set.data:size())
+&nbsp;
+training_data = prepare_training_data(input_training_set, MAX_SIZE_OF_TRAINING_SET)
+&nbsp;
+&nbsp;
+if not USE_SERIALIZED_NN then
+    network = construct_neural_network(WIDTH, HEIGHT, INPUT_PLANES, MIDDLE_PLANES,
+                                       HIDDEN_NEURONS, OUTPUT_NEURONS,
+                                       CONVOLUTION_KERNEL_SIZE, POOLING_SIZE, POOLING_STEP,
+                                       ADDITIONAL_LAYERS)
+&nbsp;
+    print("Struktura neuronove site")
+    print(network)
+    train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+&nbsp;
+    serialize_nn(network)
+else
+    network = deserialize_nn()
+end
+&nbsp;
+&nbsp;
+validation_set = torch.load('cifar10-test.t7')
+<i>--validation_set = torch.load('cifar10-train.t7')</i>
+&nbsp;
+validation_set.data = validation_set.data:double()
+<i>-- normalizace validacnich dat</i>
+normalize_data(validation_set, mean, sd, CHANNELS)
+&nbsp;
+validate_neural_network(network, validation_set, mean, sd, MAX_SIZE_OF_VALIDATION_SET)
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Získání informací o vahách a biasech přiřazených neuronům nebo konvolučním vrstvám</h2>
+
+<p>Již v&nbsp;úvodním článku o neuronových sítích jsme si vysvětlili roli vah
+přiřazených neuronům i roli takzvaného biasu. Podobné parametry existují i u
+konvolučních neuronových sítích. Váhy i biasy jsou při konstrukci neuronové
+sítě zvoleny náhodně, ovšem v&nbsp;průběhu učení se postupně modifikují a tím
+se i zpřesňují rozpoznávací schopnosti sítě. Přitom se nejedná o žádné tajné
+informace &ndash; váhy i biasy můžeme velmi snadno získat a konkrétně u
+konvolučních vrstev mají strukturu tenzorů. Nejprve ovšem musíme zařídit,
+abychom měli přístup k&nbsp;jednotlivým vrstvám sítě. To lze zařídit relativně
+snadno, například následující úpravou funkce pro konstrukci neuronové sítě
+(změněné řádky jsou zvýrazněny):</p>
+
+<pre>
+function construct_neural_network(width, height, input_planes, middle_planes,
+                                  hidden_neurons, output_neurons,
+                                  convolution_kernel_size, pooling_size, pooling_step)
+    local network = nn.Sequential()
+&nbsp;
+    local size_x = calculate_size_after_convolution(width, middle_planes, convolution_kernel_size)
+    local size_y = calculate_size_after_convolution(height, middle_planes, convolution_kernel_size)
+&nbsp;
+    print("Size x: " .. size_x)
+    print("Size y: " .. size_y)
+&nbsp;
+    <i>-- prvni konvolucni vrstva ocekavajici na vstupu 3D tenzor</i>
+    <i>-- o velikosti:</i>
+    <i>-- INPUT_PLANES x vyska x sirka</i>
+    <i>--</i>
+    <i>-- vysledkem je 3D tenzor o velikosti:</i>
+    <i>-- MIDDLE_PLANES_1 x (vyska - CONVOLUTION_KERNEL_SIZE + 1) x (sirka - CONVOLUTION_KERNEL_SIZE + 1)</i>
+    <strong>c1 = nn.SpatialConvolution(input_planes, middle_planes[1], convolution_kernel_size, convolution_kernel_size)</strong>
+    network:add(<strong>c1</strong>)
+&nbsp;
+    <i>-- nyni mame mezivysledky 64 x (vyska-5+1) x (sirka-5+1)</i>
+&nbsp;
+    <i>-- nelinearni funkce</i>
+    network:add(nn.Tanh())
+&nbsp;
+    <i>-- hledani maxima v regionech o velikosti 2x2 pixely</i>
+    <i>-- s krokem nastavenym na 2 pixely v horizontalnim i 2 pixely ve vertikalnim smeru</i>
+    network:add(nn.SpatialMaxPooling(pooling_size, pooling_size, pooling_step, pooling_step))
+&nbsp;
+    <i>-- druha konvolucni vrstva ocekavajici na vstupu 3D tenzor</i>
+    <i>-- o velikosti MIDDLE_PLANES_1 x vyska x sirka</i>
+    <strong>c2 = nn.SpatialConvolution(middle_planes[1], middle_planes[2], convolution_kernel_size, convolution_kernel_size)</strong>
+    network:add(<strong>c2</strong>)
+&nbsp;
+    <i>-- nelinearni funkce</i>
+    network:add(nn.Tanh())
+&nbsp;
+    <i>-- opetovne hledani maxima v regionech o velikosti 2x2 pixely</i>
+    <i>-- s krokem nastavenym na 2 pixely v horizontalnim i 2 pixely ve vertikalnim smeru</i>
+    network:add(nn.SpatialMaxPooling(pooling_size, pooling_size, pooling_step, pooling_step))
+&nbsp;
+    <i>-- zmena tvaru: z 3D tenzoru AxBxC na 1D tenzor s A*B*C elementy</i>
+    network:add(nn.View(middle_planes[2]*size_x*size_y))
+&nbsp;
+    <i>-- bezne vrstvy, jak je jiz zname</i>
+    network:add(nn.Linear(middle_planes[2]*size_x*size_y, hidden_neurons))
+&nbsp;
+    <i>-- pridana nelinearni funkce</i>
+    network:add(nn.ReLU())
+&nbsp;
+    <i>-- bezne vrstvy, jak je jiz zname</i>
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+&nbsp;
+    <strong>return network, c1, c2</strong>
+end
+</pre>
+
+<p>Poznámka: funkci jsme upravili pro síť určenou pro rozpoznávání číslic, ale
+princip je stále stejný i pro složitější sítě.</p>
+
+<img src="https://i.iinfo.cz/images/329/torch-nn1-2.png" class="image-312262" alt="&#160;" width="465" height="145" />
+<p><i>Obrázek 2: Idealizovaný model neuronu s&nbsp;biasem.</i></p>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Zobrazení a serializace vah konvoluční vrstvy</h2>
+
+<p>Ve chvíli, kdy již máme k&nbsp;dispozici objekty představující konvoluční
+vrstvy neuronové sítě, lze váhy (po natrénování) získat snadno; stejně snadno
+je můžeme serializovat:</p>
+
+<pre>
+network, c1, c2 = construct_neural_network(WIDTH, HEIGHT, INPUT_PLANES, MIDDLE_PLANES,
+                                           HIDDEN_NEURONS, OUTPUT_NEURONS,
+                                           CONVOLUTION_KERNEL_SIZE, POOLING_SIZE, POOLING_STEP)
+&nbsp;
+training_data = prepare_training_data(SCALE, NOISE_VARIANCES, REPEAT_COUNT,
+                                      BLACK_LEVEL, WHITE_LEVEL, EXPORT_IMAGES)
+&nbsp;
+train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+&nbsp;
+print(c1.weight)
+print(c2.weight)
+&nbsp;
+function serialize(data, filename)
+    local fout = torch.DiskFile(filename, "w"):ascii()
+    fout:writeObject(data)
+    fout:close()
+end
+&nbsp;
+serialize(c1.weight, "c1.asc")
+serialize(c2.weight, "c2.asc")
+</pre>
+
+<p>Na příklad výstupu můžeme vidět, že konvoluční vrstva skutečně obsahuje
+množství konvolučních jader (<i>kernel</i>), každé o zadané velikosti 5&times;5
+prvků:</p>
+
+<pre>
+...
+...
+...
+(1,63,.,.) = 
+ -3.7841e-04  1.9185e-03  1.2704e-03 -1.2442e-02 -1.8779e-02
+ -5.1994e-03 -4.9628e-03 -2.4966e-02  4.1733e-03  1.2175e-02
+  2.1420e-03 -4.9453e-03 -1.6388e-02 -2.3170e-02  3.3196e-03
+  1.5688e-02  7.0532e-03  3.3450e-03 -1.0674e-02  3.0495e-03
+ -3.8021e-03 -1.9843e-02 -1.6602e-02  1.5282e-02 -2.5436e-02
+&nbsp;
+(2,63,.,.) = 
+ -9.5145e-03  2.1055e-02 -1.6311e-02 -2.0666e-02  1.9270e-02
+  4.1829e-03  1.8305e-03  6.5574e-03  1.2624e-02  1.6650e-02
+ -2.4766e-02 -1.2444e-02  5.8772e-03 -1.1041e-02 -1.7269e-02
+ -2.0450e-02  1.3396e-02 -1.3379e-02 -1.2112e-02 -1.6390e-02
+  2.0790e-02 -5.1574e-03 -1.0249e-02 -2.2770e-02 -2.1044e-02
+&nbsp;
+(3,63,.,.) = 
+ -8.3722e-03 -1.0714e-02  7.8625e-03  2.7706e-02  2.6522e-02
+  7.9277e-03 -2.6712e-02 -2.5026e-02  1.7980e-02  1.9504e-02
+ -4.9129e-03 -2.5328e-02 -2.4687e-02  1.1672e-02 -7.5201e-03
+  1.6656e-03  2.1806e-02  2.0424e-03 -1.0453e-02 -7.4789e-03
+  1.3030e-02 -3.8616e-03 -8.7773e-04  8.9792e-03 -1.4806e-02
+&nbsp;
+(4,63,.,.) = 
+ -1.3717e-02 -7.0788e-03  7.5901e-03  1.4140e-02  1.7764e-02
+  8.8145e-03  1.3725e-02 -1.2065e-02  8.5516e-03 -2.2490e-02
+  1.7917e-02  2.0467e-02  8.4158e-03 -7.4859e-03 -1.6332e-02
+  7.9493e-03  1.9769e-02 -1.0942e-03 -7.3233e-03 -1.8331e-03
+  6.6321e-03 -1.2397e-02  2.0086e-02  1.8128e-02  1.3454e-02
+&nbsp;
+(5,63,.,.) = 
+  1.1128e-02 -7.4809e-03  2.1087e-02  2.6392e-03  1.5307e-02
+ -4.4263e-03 -7.0609e-03  1.6372e-02  1.3728e-02  1.5818e-02
+ -6.6785e-03 -2.5182e-02 -1.8356e-02 -1.4481e-02  5.0062e-03
+  1.8460e-02  1.0207e-02 -4.7329e-03 -5.8213e-03  1.2957e-02
+  1.6118e-02 -1.2725e-02 -1.5452e-02 -2.1715e-02 -5.2119e-03
+...
+...
+...
+</pre>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Rozměr tenzorů s&nbsp;vahami konvolučních vrstev</h2>
+
+<p>Rozměry tenzorů obou konvolučních vrstev získáme snadno pomocí metody
+<strong>size()</strong>:</p>
+
+<pre>
+print(c1.weight:size())
+print(c2.weight:size())
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+ 64
+  1
+  5
+  5
+&nbsp;
+odpovídá typu [torch.DoubleTensor of size 64x1x5x5]
+&nbsp;
+&nbsp;
+ 64
+ 64
+  5
+  5
+&nbsp;
+odpovídá typu [torch.DoubleTensor of size 64x64x5x5]
+</pre>
+
+<p>První tenzor má rozměry 64&times;1&times;5&times;5 elementů, kde 5&times;5
+jsou velikosti konvolučních jader, 64 je počet rovin na výstupu
+z&nbsp;konvoluční vrstvy a 1 je počet vstupních kanálů (jen jeden, protože zde
+používáme monochromatické obrázky). Ovšem druhá konvoluční vrstva již má
+odlišný vstup &ndash; 64 kanálů namísto jednoho, takže tenzor s&nbsp;vahami má
+rozměry 64&times;64&times;5&times;5 elementů.</p>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Repositář s&nbsp;demonstračním projektem</h2>
+
+<p>Demonstrační projekt, který jsme si popsali v&nbsp;předchozích kapitolách,
+najdete v&nbsp;GIT repositáři dostupném na adrese <a
+href="https://github.com/tisnik/torch-examples.git">https://github.com/tisnik/torch-examples.git</a>.
+Následují odkazy na zdrojové kódy jednotlivých souborů projektu:</p>
+
+<table>
+<tr><th>Soubor</th><th>Adresa</th></tr>
+<tr><td>image_lib/image_writer.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/image_lib/image_writer.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/image_lib/image_writer.lua</a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>nn/nn_constructor.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/nn/nn_constructor.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/nn/nn_constructor.lua</a></td></tr>
+<tr><td>nn/nn_serialization.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/nn/nn_serialization.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/nn/nn_serialization.lua</a></td></tr>
+<tr><td>nn/nn_trainer.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/nn/nn_trainer.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/nn/nn_trainer.lua</a></td></tr>
+<tr><td>nn/nn_validators.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/nn/nn_validators.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/nn/nn_validators.lua</a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>utils/cifar_downloader.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/utils/cifar_downloader.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/utils/cifar_downloader.lua</a></td></tr>
+<tr><td>utils/classification_classes.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/utils/classification_classes.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/utils/classification_classes.lua</a></td></tr>
+<tr><td>utils/data_normalizer.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/utils/data_normalizer.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/utils/data_normalizer.lua</a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>cifar_data_classificator.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/cifar_data_classificator.lua">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/cifar_data_classificator.lua</a></td></tr>
+<tr><td>&nbsp;</td><td>&nbsp;</td></tr>
+<tr><td>clean.sh</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/clean.sh">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificato2r/clean.sh</a></td></tr>
+<tr><td>run.sh</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/run.sh">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/run.sh</a></td></tr>
+<tr><td>run_variable_params.sh</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/run_variable_params.sh">https://github.com/tisnik/torch-examples/blob/master/nn/cifar_data_classificator2/run_variable_params.sh</a></td></tr>
+</table>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>THE MNIST DATABASE of handwritten digits<br />
+<a href="http://yann.lecun.com/exdb/mnist/">http://yann.lecun.com/exdb/mnist/</a>
+</li>
+
+<li>MNIST database (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MNIST_database">https://en.wikipedia.org/wiki/MNIST_database</a>
+</li>
+
+<li>MNIST For ML Beginners<br />
+<a href="https://www.tensorflow.org/get_started/mnist/beginners">https://www.tensorflow.org/get_started/mnist/beginners</a>
+</li>
+
+<li>Stránka projektu Torch<br />
+<a href="http://torch.ch/">http://torch.ch/</a>
+</li>
+
+<li>Torch: Serialization<br />
+<a href="https://github.com/torch/torch7/blob/master/doc/serialization.md">https://github.com/torch/torch7/blob/master/doc/serialization.md</a>
+</li>
+
+<li>Torch: modul image<br />
+<a href="https://github.com/torch/image/blob/master/README.md">https://github.com/torch/image/blob/master/README.md</a>
+</li>
+
+<li>Data pro neuronové sítě<br />
+<a href="http://archive.ics.uci.edu/ml/index.php">http://archive.ics.uci.edu/ml/index.php</a>
+</li>
+
+<li>LED Display Domain Data Set<br />
+<a href="http://archive.ics.uci.edu/ml/datasets/LED+Display+Domain">http://archive.ics.uci.edu/ml/datasets/LED+Display+Domain</a>
+</li>
+
+<li>Torch na GitHubu (několik repositářů)<br />
+<a href="https://github.com/torch">https://github.com/torch</a>
+</li>
+
+<li>Torch (machine learning), Wikipedia<br />
+<a href="https://en.wikipedia.org/wiki/Torch_%28machine_learning%29">https://en.wikipedia.org/wiki/Torch_%28machine_learning%29</a>
+</li>
+
+<li>Torch Package Reference Manual<br />
+<a href="https://github.com/torch/torch7/blob/master/README.md">https://github.com/torch/torch7/blob/master/README.md</a>
+</li>
+
+<li>Torch Cheatsheet<br />
+<a href="https://github.com/torch/torch7/wiki/Cheatsheet">https://github.com/torch/torch7/wiki/Cheatsheet</a>
+</li>
+
+<li>Neural network containres (Torch)<br />
+<a href="https://github.com/torch/nn/blob/master/doc/containers.md">https://github.com/torch/nn/blob/master/doc/containers.md</a>
+</li>
+
+<li>Simple layers<br />
+<a href="https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear">https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear</a>
+</li>
+
+<li>Transfer Function Layers<br />
+<a href="https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok">https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok</a>
+</li>
+
+<li>Feedforward neural network<br />
+<a href="https://en.wikipedia.org/wiki/Feedforward_neural_network">https://en.wikipedia.org/wiki/Feedforward_neural_network</a>
+</li>
+
+<li>Biologické algoritmy (4) - Neuronové sítě<br />
+<a href="https://www.root.cz/clanky/biologicke-algoritmy-4-neuronove-site/">https://www.root.cz/clanky/biologicke-algoritmy-4-neuronove-site/</a>
+</li>
+
+<li>Biologické algoritmy (5) - Neuronové sítě<br />
+<a href="https://www.root.cz/clanky/biologicke-algoritmy-5-neuronove-site/">https://www.root.cz/clanky/biologicke-algoritmy-5-neuronove-site/</a>
+</li>
+
+<li>Umělá neuronová síť (Wikipedia)<br />
+<a href="https://cs.wikipedia.org/wiki/Um%C4%9Bl%C3%A1_neuronov%C3%A1_s%C3%AD%C5%A5">https://cs.wikipedia.org/wiki/Um%C4%9Bl%C3%A1_neuronov%C3%A1_s%C3%AD%C5%A5</a>
+</li>
+
+<li>Učení s učitelem (Wikipedia)<br />
+<a href="https://cs.wikipedia.org/wiki/U%C4%8Den%C3%AD_s_u%C4%8Ditelem">https://cs.wikipedia.org/wiki/U%C4%8Den%C3%AD_s_u%C4%8Ditelem</a>
+</li>
+
+<li>Plotting with Torch7<br />
+<a href="http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/">http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/</a>
+</li>
+
+<li>Plotting Package Manual with Gnuplot<br />
+<a href="https://github.com/torch/gnuplot/blob/master/README.md">https://github.com/torch/gnuplot/blob/master/README.md</a>
+</li>
+
+<li>An Introduction to Tensors<br />
+<a href="https://math.stackexchange.com/questions/10282/an-introduction-to-tensors">https://math.stackexchange.com/questions/10282/an-introduction-to-tensors</a>
+</li>
+
+<li>Gaussian filter<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_filter">https://en.wikipedia.org/wiki/Gaussian_filter</a>
+</li>
+
+<li>Gaussian function<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_function">https://en.wikipedia.org/wiki/Gaussian_function</a>
+</li>
+
+<li>Laplacian/Laplacian of Gaussian<br />
+<a href="http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm">http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm</a>
+</li>
+
+<li>Odstranění šumu<br />
+<a href="https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu">https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu</a>
+</li>
+
+<li>Binary image<br />
+<a href="https://en.wikipedia.org/wiki/Binary_image">https://en.wikipedia.org/wiki/Binary_image</a>
+</li>
+
+<li>Erosion (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Erosion_%28morphology%29">https://en.wikipedia.org/wiki/Erosion_%28morphology%29</a>
+</li>
+
+<li>Dilation (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Dilation_%28morphology%29">https://en.wikipedia.org/wiki/Dilation_%28morphology%29</a>
+</li>
+
+<li>Mathematical morphology<br />
+<a href="https://en.wikipedia.org/wiki/Mathematical_morphology">https://en.wikipedia.org/wiki/Mathematical_morphology</a>
+</li>
+
+<li>Cvičení 10 - Morfologické operace<br />
+<a href="http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php">http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php</a>
+</li>
+
+<li>Differences between a matrix and a tensor<br />
+<a href="https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor">https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor</a>
+</li>
+
+<li>Qualitatively, what is the difference between a matrix and a tensor?<br />
+<a href="https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?">https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?</a>
+</li>
+
+<li>BLAS (Basic Linear Algebra Subprograms)<br />
+<a href="http://www.netlib.org/blas/">http://www.netlib.org/blas/</a>
+</li>
+
+<li>Basic Linear Algebra Subprograms (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms">https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms</a>
+</li>
+
+<li>Comparison of deep learning software<br />
+<a href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software</a>
+</li>
+
+<li>TensorFlow<br />
+<a href="https://www.tensorflow.org/">https://www.tensorflow.org/</a>
+</li>
+
+<li>Caffe2 (A New Lightweight, Modular, and Scalable Deep Learning Framework)<br />
+<a href="https://caffe2.ai/">https://caffe2.ai/</a>
+</li>
+
+<li>PyTorch<br />
+<a href="http://pytorch.org/">http://pytorch.org/</a>
+</li>
+
+<li>Seriál o programovacím jazyku Lua<br />
+<a href="http://www.root.cz/serialy/programovaci-jazyk-lua/">http://www.root.cz/serialy/programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (2)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (3)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (4)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (5 - tabulky a pole)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (6 - překlad programových smyček do mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (7 - dokončení popisu mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (8 - základní vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (9 - další vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (10 - JIT překlad do nativního kódu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (11 - JIT překlad do nativního kódu procesorů s architekturami x86 a ARM)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (12 - překlad operací s reálnými čísly)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/</a>
+</li>
+
+<li>Lua Profiler (GitHub)<br />
+<a href="https://github.com/luaforge/luaprofiler">https://github.com/luaforge/luaprofiler</a>
+</li>
+
+<li>Lua Profiler (LuaForge)<br />
+<a href="http://luaforge.net/projects/luaprofiler/">http://luaforge.net/projects/luaprofiler/</a>
+</li>
+
+<li>ctrace<br />
+<a href="http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</li>
+
+<li>The Lua VM, on the Web<br />
+<a href="https://kripken.github.io/lua.vm.js/lua.vm.js.html">https://kripken.github.io/lua.vm.js/lua.vm.js.html</a>
+</li>
+
+<li>Lua.vm.js REPL<br />
+<a href="https://kripken.github.io/lua.vm.js/repl.html">https://kripken.github.io/lua.vm.js/repl.html</a>
+</li>
+
+<li>lua2js<br />
+<a href="https://www.npmjs.com/package/lua2js">https://www.npmjs.com/package/lua2js</a>
+</li>
+
+<li>lua2js na GitHubu<br />
+<a href="https://github.com/basicer/lua2js-dist">https://github.com/basicer/lua2js-dist</a>
+</li>
+
+<li>Lua (programming language)<br />
+<a href="http://en.wikipedia.org/wiki/Lua_(programming_language)">http://en.wikipedia.org/wiki/Lua_(programming_language)</a>
+</li>
+
+<li>LuaJIT 2.0 SSA IR<br />
+<a href="http://wiki.luajit.org/SSA-IR-2.0">http://wiki.luajit.org/SSA-IR-2.0</a>
+</li>
+
+<li>The LuaJIT Project<br />
+<a href="http://luajit.org/index.html">http://luajit.org/index.html</a>
+</li>
+
+<li>LuaJIT FAQ<br />
+<a href="http://luajit.org/faq.html">http://luajit.org/faq.html</a>
+</li>
+
+<li>LuaJIT Performance Comparison<br />
+<a href="http://luajit.org/performance.html">http://luajit.org/performance.html</a>
+</li>
+
+<li>LuaJIT 2.0 intellectual property disclosure and research opportunities<br />
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908">http://article.gmane.org/gmane.comp.lang.lua.general/58908</a>
+</li>
+
+<li>LuaJIT Wiki<br />
+<a href="http://wiki.luajit.org/Home">http://wiki.luajit.org/Home</a>
+</li>
+
+<li>LuaJIT 2.0 Bytecode Instructions<br />
+<a href="http://wiki.luajit.org/Bytecode-2.0">http://wiki.luajit.org/Bytecode-2.0</a>
+</li>
+
+<li>Programming in Lua (first edition)<br />
+<a href="http://www.lua.org/pil/contents.html">http://www.lua.org/pil/contents.html</a>
+</li>
+
+<li>Lua 5.2 sources<br />
+<a href="http://www.lua.org/source/5.2/">http://www.lua.org/source/5.2/</a>
+</li>
+
+<li>REPL<br />
+<a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop</a>
+</li>
+
+<li>The LLVM Compiler Infrastructure<br />
+<a href="http://llvm.org/ProjectsWithLLVM/">http://llvm.org/ProjectsWithLLVM/</a>
+</li>
+
+<li>clang: a C language family frontend for LLVM<br />
+<a href="http://clang.llvm.org/">http://clang.llvm.org/</a>
+</li>
+
+<li>LLVM Backend ("Fastcomp")<br />
+<a href="http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend">http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend</a>
+</li>
+
+<li>Lambda the Ultimate: Coroutines in Lua,<br />
+<a href="http://lambda-the-ultimate.org/node/438">http://lambda-the-ultimate.org/node/438</a>
+</li>
+
+<li>Coroutines Tutorial,<br />
+<a href="http://lua-users.org/wiki/CoroutinesTutorial">http://lua-users.org/wiki/CoroutinesTutorial</a>
+</li>
+
+<li>Lua Coroutines Versus Python Generators,<br />
+<a href="http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators">http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2018</small></p>
+</body>
+</html>
+

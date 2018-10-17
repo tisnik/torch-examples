@@ -1,0 +1,1482 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Framework Torch: základy práce s neuronovými sítěmi</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Framework Torch: základy práce s neuronovými sítěmi</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V sedmé části seriálu o frameworku Torch si ukážeme, jakým způsobem je možné vytvořit jednoduchou neuronovou síť s&nbsp;jednou skrytou vrstvou neuronů, naučit tuto síť řešit zvolený problém s&nbsp;využitím sady trénovacích dat a následně tuto síť použít nad další sadou (validačních) dat.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Framework Torch: základy práce s&nbsp;neuronovými sítěmi</a></p>
+<p><a href="#k02">2. Idealizovaný model neuronu používaný v&nbsp;umělých neuronových sítích</a></p>
+<p><a href="#k03">3. Role biasu</a></p>
+<p><a href="#k04">4. Aktivační funkce</a></p>
+<p><a href="#k05">5. Vytvoření feed-forward sítě z&nbsp;jednotlivých neuronů</a></p>
+<p><a href="#k06">6. Vstupní vrstva, výstupní vrstva a skryté vrstvy neuronů</a></p>
+<p><a href="#k07">7. Trénink (učení) sítě s&nbsp;využitím trénovacích dat</a></p>
+<p><a href="#k08">8. Tvorba neuronové sítě ve frameworku Torch</a></p>
+<p><a href="#k09">9. Příprava trénovacích dat</a></p>
+<p><a href="#k10">10. Konstrukce neuronové sítě se třemi vrstvami</a></p>
+<p><a href="#k11">11. Trénink sítě</a></p>
+<p><a href="#k12">12. Použití neuronové sítě na sadě validačních dat</a></p>
+<p><a href="#k13">13. Úplný zdrojový kód dnešního prvního demonstračního příkladu</a></p>
+<p><a href="#k14">14. Parametry ovlivňující chování sítě</a></p>
+<p><a href="#k15">15. Příliš malý počet neuronů ve skryté vrstvě</a></p>
+<p><a href="#k16">16. Jednoduchá síť odhadující součet dvou prvků</a></p>
+<p><a href="#k17">17. Odhad součtu sítí využívající aktivační funkci Tanh</a></p>
+<p><a href="#k18">18. Použití aktivační funkce ReLU namísto Tanh</a></p>
+<p><a href="#k19">19. Úplný zdrojový kód dnešního druhého demonstračního příkladu</a></p>
+<p><a href="#k20">20. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Framework Torch: základy práce s&nbsp;neuronovými sítěmi</h2>
+
+<p>V&nbsp;dnešním článku o frameworku <i>Torch</i> se budeme zabývat
+problematikou vytvoření jednoduchých umělých neuronových sítí (zkráceně jen
+neuronových sítí neboli <i>neural network</i>, <i>nn</i>) a taktéž způsobem
+tréninku (učení) těchto sítí. Již na začátku je nutné říct, že se jedná o dosti
+rozsáhlou problematiku, pro jejíž pochopení se navíc očekává alespoň základní
+znalost teorie neuronových sítí. I z&nbsp;tohoto důvodu se zpočátku zaměříme na
+jednoduché sítě typu <i>feed-forward</i> se třemi vrstvami neuronů, přičemž
+neurony na sousedních vrstvách budou propojeny (synapsemi) systémem
+&bdquo;každý s&nbsp;každým&ldquo; a informace mezi neurony potečou pouze jedním
+směrem (<i>forward</i>). V&nbsp;dalších částech tohoto seriálu si popíšeme i
+další typy sítí, v&nbsp;nichž bude použito více vrstev neuronů, neurony budou
+propojeny odlišným způsobem, budou použity jiné aktivační funkce atd.</p>
+
+<p>Neuronové sítě se používají zejména v&nbsp;těch projektech, v&nbsp;nichž je
+zapotřebí vytvořit funkční systém už ve chvíli, kdy ještě neznáme všechny možné
+kombinace vstupů a výstupů, popř.&nbsp;když je chování systému, který se
+implementuje, tak složité, že klasický návrh a implementace algoritmů by byl
+příliš zdlouhavý nebo s&nbsp;danými prostředky (čas, počet vývojářů a testerů)
+neefektivní. Jednou z&nbsp;nevýhod neuronových sítí může být to, že je někdy
+velmi obtížné zjistit, jaký problém jsme vlastně neuronovou síť naučili řešit.
+Výsledná síť se totiž (pokud se nebudeme hodně snažit zjisti více) chová jako
+<i>blackbox</i>, o němž není snadné říct, jaké konkrétní rozhodování ten který
+neuron provádí (v&nbsp;některých případech to ovšem možné je). Kritickou úlohu
+zde sehrává výběr vhodné množiny trénovacích dat. K&nbsp;tomu se však dostaneme
+až v&nbsp;dalších částech seriálu, v&nbsp;nichž se zmíníme o již existujících
+trénovacích datech.</p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Idealizovaný model neuronu používaný v&nbsp;umělých neuronových sítích</h2>
+
+<p>Při práci s&nbsp;umělými neuronovými sítěmi je vhodné vědět, jak je vlastně
+taková síť zkonstruována a z&nbsp;jakých prvků se skládá. Základním stavebním
+prvkem je umělý neuron, resp.&nbsp;velmi zjednodušený a idealizovaný model
+skutečného neuronu. Původní model neuronu byl navržen Warrenem McCullochem a
+Walterem Pittsem (MCP) již ve čtyřicátých letech minulého století, z&nbsp;čehož
+plyne, že neuronové sítě nejsou jen módním výstřelkem poslední doby (naopak,
+moderní GPU umožňují jejich nasazení i tam, kde to dříve nebylo možné, to je
+však téma na další článek.). Na dalším obrázku jsou naznačeny prvky modelu
+neuronu:</p>
+
+<img src="https://i.iinfo.cz/images/329/torch-nn1-1.png" class="image-312261" alt="&#160;" width="459" height="140" />
+<p><i>Obrázek 1: Idealizovaný model neuronu.</i></p>
+
+<p>Vidíme, že neuron může mít libovolný počet vstupů (na obrázku jsou tři
+vstupy <strong>x<sub>1</sub></strong>, <strong>x<sub>2</sub></strong> a
+<strong>x<sub>3</sub></strong>, ovšem může to být jen jeden vstup nebo i sto
+vstupů) a má pouze jeden výstup <strong>y</strong>. Vstupem a výstupem jsou
+reálná čísla; typicky bývá výstup upraven aktivační funkcí tak, že leží
+v&nbsp;rozsahu &lt;-1..1&gt; nebo &lt;0..1&gt;. Dále na schématu vidíme váhy
+<strong>w<sub>1</sub></strong>, <strong>w<sub>2</sub></strong> a
+<strong>w<sub>3</sub></strong>. Těmito váhami jsou vynásobeny vstupní hodnoty.
+Váhy vlastně představují stav neuronu, tj.&nbsp;o funkci, na kterou byl neuron
+natrénován (naučen). Vstupní hodnoty <strong>x<sub>1</sub></strong> až
+<strong>x<sub>n</sub></strong> jsou tedy postupně vynásobeny váhami
+<strong>w<sub>1</sub></strong> až <strong>w<sub>n</sub></strong> a výsledky
+součinu jsou v&nbsp;neuronu sečteny, takže získáme jediné reálné číslo. Toto
+číslo je zpracováno <i>aktivační funkcí</i> (ta již většinou žádný stav nemá,
+ostatně stejně jako funkce pro výpočet sumy) výsledek této funkce je poslán na
+výstup neuronu.</p>
+
+<p>Neuron tedy provádí tento výpočet:</p>
+
+<p>
+y = f(w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + ... + w<sub>n</sub>x<sub>n</sub>)
+</p>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Role biasu</h2>
+
+<p>Ve skutečnosti není stav neuronu pro <i>n</i> vstupů
+<strong>x<sub>1</sub></strong> až <strong>x<sub>n</sub></strong> určen pouze
+<i>n</i> vahami <strong>w<sub>1</sub></strong> až
+<strong>w<sub>n</sub></strong>. Musíme přidat ještě váhu
+<strong>w<sub>0</sub></strong>, na kterou je připojena konstanta 1 (někdy se
+proto můžeme setkat s&nbsp;nákresem neuronové sítě, v&nbsp;níž se nachází
+speciální neurony bez vstupů a s&nbsp;jedničkou na výstupu). Model neuronu se
+přidáním nového vstupu nepatrně zkomplikuje:</p>
+
+<img src="https://i.iinfo.cz/images/329/torch-nn1-2.png" class="image-312262" alt="&#160;" width="465" height="145" />
+<p><i>Obrázek 2: Idealizovaný model neuronu s&nbsp;biasem.</i></p>
+
+<p>I výpočet bude vypadat odlišně, neboť do něho přidáme nový člen:</p>
+
+<p>
+y = f(<strong>w<sub>0</sub></strong> + w<sub>1</sub>x<sub>1</sub> + w<sub>2</sub>x<sub>2</sub> + ... + w<sub>n</sub>x<sub>n</sub>)
+</p>
+
+<p>Tato přidaná váha se někdy nazývá <i>bias</i>, protože vlastně umožňuje
+posouvat <a
+href="https://stackoverflow.com/questions/2480650/role-of-bias-in-neural-networks">průběh
+aktivační funkce nalevo a napravo</a>, v&nbsp;závislosti na jeho hodnotě.</p>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Aktivační funkce</h2>
+
+<p>Bez aktivační funkce by se neuron choval jednoduše &ndash; spočítal by
+vážený součet vstupů a výsledek by poslal na výstup. Aktivační funkce, kterou
+jsme v&nbsp;předchozích dvou kapitolách označovali symbolem <i>f</i>, do celého
+výpočtu vnáší nelinearitu. Nejjednodušší aktivační funkce může pro vstupní
+hodnoty &lt;0 vracet -1 a pro hodnoty &ge;0 vracet 1, což vlastně říká, že je
+nutné dosáhnout určité hraniční hodnoty váženého součtu vstupů, aby byl neuron
+aktivován (tj.&nbsp;na výstup vyslal jedničku a nikoli -1). Ostatně právě zde
+znovu vidíme význam biasu, který onu hraniční hodnotu posunuje.</p>
+
+<img src="https://i.iinfo.cz/images/329/torch-nn1-3.png" class="image-312263" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 3: Aktivační funkce ReLU.</i></p>
+
+<p>V&nbsp;praxi je však aktivační funkce složitější, než zmíněný jednotkový
+skok. Často se používá <a
+href="https://github.com/torch/nn/blob/master/doc/transfer.md#relu">ReLU
+(rectified linear unit)</a>, <a
+href="https://github.com/torch/nn/blob/master/doc/transfer.md#sigmoid">sigmoid</a>
+nebo <a
+href="https://github.com/torch/nn/blob/master/doc/transfer.md#tanh">hyperbolický
+tangent</a>. Pro specializované účely se však používají i další funkce, které
+dokonce nemusí mít monotonní průběh. S&nbsp;dalšími podporovanými funkcemi
+se seznámíme příště.</p>
+
+<img src="https://i.iinfo.cz/images/329/torch-nn1-4.png" class="image-312264" alt="&#160;" width="640" height="480" />
+<p><i>Obrázek 4: Aktivační funkce Tanh.</i></p>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Vytvoření feed-forward sítě z&nbsp;jednotlivých neuronů</h2>
+
+<p>Samostatné neurony i s&nbsp;aktivační funkcí stále provádí velmi jednoduchou
+činnost, ovšem aby se mohly stát součástí složitějšího systému (řekněme
+automatického řízení auta), musíme z&nbsp;nich vytvořit síť. Jedna
+z&nbsp;nejjednodušších forem umělé neuronové sítě se nazývá
+<i>feed-forward</i>, a to z&nbsp;toho důvodu, že informace (tedy vstupní
+hodnoty, mezihodnoty i hodnoty výstupní) touto sítí tečou jen jedním směrem
+(při učení je tomu jinak).  Neurony jsou uspořádány pravidelně do vrstev:</p>
+
+<img src="https://i.iinfo.cz/images/329/torch-nn1-5.png" class="image-312265" alt="&#160;" width="600" height="400" />
+<p><i>Obrázek 5: Uspořádání neuronů do vrstev ve feed-forward síti.</i></p>
+
+<p>Kolečka na obrázku představují jednotlivé neurony, přičemž žlutě jsou
+označeny neurony na vstupu, zeleně &bdquo;interní&ldquo; (skryté) neurony a
+červeně neurony, které produkují kýžený výstup neuronové sítě.</p>
+
+<p>Zcela nalevo jsou šipkami naznačeny vstupy. Jejich počet je prakticky zcela
+závislý na řešeném problému. Může se jednat jen o několik vstupů (viz naše
+testovací síť popsaná níže, která zpracuje dvě reálná čísla), ovšem pokud
+například budeme tvořit síť určenou pro rozpoznání objektů v&nbsp;rastrovém
+obrázku, může být počet vstupů roven počtu pixelů.</p>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Vstupní vrstva, výstupní vrstva a skryté vrstvy neuronů</h2>
+
+<p>Vraťme se ještě jednou k&nbsp;obrázku číslo 5.</p>
+
+<p>Povšimněte si, že vstupní neurony mají vlastně zjednodušenou funkci, protože
+mají jen jeden vstup. V&nbsp;mnoha typech sítí tyto neurony jen rozesílají
+vstup na další neurony a neprovádí žádný složitější výpočet, například u nich
+není použita aktivační funkce, ovšem to již záleží na konkrétní konfiguraci
+sítě. Dále stojí za povšimnutí, že neurony posílají svůj výstup neuronům na
+nejbližší další vrstvě; nejsou zde tedy žádné zkratky, žádné zpětné vazby atd.
+Existují samozřejmě složitější typy sítí, těmi se teď ale nebudeme zabývat.
+Dále tato síť propojuje neurony na sousedních vrstvách systémem &bdquo;každý
+s&nbsp;každým&ldquo;. V&nbsp;našem konkrétním příkladu mají neurony na
+prostřední vrstvě dva vstupy, protože předchozí vrstva má jen dva neurony.
+Ovšem neurony na poslední vrstvě již musí mít tři vstupy.</p>
+
+<p>Poznámka: může se stát, že síť bude po naučení obsahovat neurony, jejichž
+váhy na vstupu budou nulové. To vlastně značí, že ze sítě některé spoje (šipky)
+zmizí, protože vynásobením jakéhokoli vstupu nulou dostaneme zase jen nulu.</p>
+
+<p>První vrstva s&nbsp;jednoduchými (&bdquo;hloupými&ldquo;) neurony se nazývá
+vstupní vrstva, poslední vrstva je vrstva výstupní. Vrstvy mezi vrstvou vstupní
+a výstupní, kterých může být teoreticky libovolné množství, se nazývají skryté
+vrstvy.</p>
+
+<p>&bdquo;Paměť&ldquo; neuronové sítě je tvořena vahami na vstupech
+neuronů (včetně biasu):</p>
+
+<table>
+<tr><th>Vrstva</th><th>Neuronů</th><th>Počet vstupů/neuron</th><th>Počet vah/neuron</th><th>Celkem</th></tr>
+<tr><td>1</td><td>2</td><td>1</td><td>2</td><td>4</td></tr>
+<tr><td>2</td><td>3</td><td>2</td><td>3</td><td>9</td></tr>
+<tr><td>3</td><td>2</td><td>3</td><td>4</td><td>8</td></tr>
+<tr><td>&sum;</td><td>7</td><td>&nbsp;</td><td>&nbsp;</td><td>21</td></tr>
+</table>
+
+<p>V&nbsp;praxi se používají sítě s&nbsp;více vrstvami a především
+s&nbsp;větším počtem neuronů v&nbsp;každé vrstvě. Stavový prostor a tím i
+schopnosti sítě se tak prudce rozšiřují (viz již zmíněná problematika
+rozpoznávání objektů v&nbsp;rastrových obrázcích).</p>
+
+<p>Poznámka: někdy se počet neuronů v&nbsp;umělých sítích porovnává
+s&nbsp;počtem neuronů v&nbsp;mozku, ale to je ve skutečnosti dost zavádějící,
+neboť záleží spíše na uspořádání sítě, složitosti neuronů (více výstupů)
+atd.</p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Trénink (učení) sítě s&nbsp;využitím trénovacích dat</h2>
+
+<p>Nejzajímavější je proces tréninku (učení) sítě. Ten může probíhat několika
+způsoby, ovšem nejčastější je učení založené na tom, že na vstup sítě přivedeme
+data, u nichž dopředu známe očekávaný výsledek (v&nbsp;Torchi se jedná o
+tenzor). Síť pro tato vstupní data provede svůj odhad a na základě rozdílů mezi
+odhadem sítě a očekávaným výsledkem se více či méně sofistikovanými algoritmy
+nepatrně pozmění váhy <strong>w<sub>i</sub></strong> na vstupech do neuronů
+(včetně biasu, tedy <strong>w<sub>0</sub></strong>). Konkrétní míra změn váhy
+na vstupech neuronů je globálně řízena dalším parametrem či parametry,
+z&nbsp;nichž ten nejdůležitější ovlivňuje rychlost učení. Ta by neměla být
+příliš nízká (to vyžaduje objemná trénovací data nebo jejich opakování), ale
+ani příliš vysoká. Základní algoritmus učení sítě se jmenuje
+<i>backpropagation</i>, protože se váhy skutečně mění v&nbsp;opačném směru
+&ndash; od výstupů (na něž se přivede vypočtená chyba) ke vstupům. Asi nejlépe
+je tento koncept popsán v&nbsp;článku dostupném na adrese <a
+href="https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/">https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/</a>,
+tuto část za nás však vykoná Torch automaticky (navíc alternativně
+s&nbsp;dopomocí GPU).</p>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Tvorba neuronové sítě ve frameworku Torch</h2>
+
+<p>V&nbsp;následujících čtyřech kapitolách si ukážeme, jak lze vytvořit
+jednoduchou neuronovou síť v&nbsp;využitím frameworku Torch. Navrhovaná síť
+bude mít dva vstupy, jeden výstup a jedinou skrytou vrstvu. Bude tedy vypadat
+takto (počet neuronů na skryté vrstvě je ve skutečnosti větší, tím pádem i
+počet spojů/synapsí):</p>
+
+<img src="https://i.iinfo.cz/images/329/torch-nn1-6.png" class="image-312266" alt="&#160;" width="600" height="400" />
+<p><i>Obrázek 6: Neuronová síť, kterou se budeme snažit vytvořit v&nbsp;dalších
+kapitolách.</i></p>
+
+<p>Síť bude natrénována pro výpočet zobecněné funkce xor, což je poměrně
+typický &bdquo;školní&ldquo; příklad, mnohdy zadávaný tak, aby studenti museli
+naučit síť sami (tj.&nbsp;&bdquo;ručním&ldquo; provedením algoritmu
+backpropagace).</p>
+
+<p>Při práci s&nbsp;Torchem se budeme používat objekty z&nbsp;těchto tří modulů:</p>
+
+<ol>
+<li>Neural network containres (kontejnery pro vrstvy neuronové sítě)<br />
+<a href="https://github.com/torch/nn/blob/master/doc/containers.md">https://github.com/torch/nn/blob/master/doc/containers.md</a>
+</li>
+
+<li>Simple layers (jednotlivé vrstvy sítě)<br />
+<a href="https://github.com/torch/nn/blob/master/doc/simple.md">https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear</a>
+</li>
+
+<li>Transfer Function Layers (nelineární funkce zabudované do sítě)<br />
+<a href="https://github.com/torch/nn/blob/master/doc/transfer.md">https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok</a>
+</li>
+
+</ol>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Příprava trénovacích dat</h2>
+
+<p>V&nbsp;první fázi našeho projektu jednoduché neuronové sítě provedeme
+přípravu trénovacích dat. Bude se jednat o dvojice čísel generovaných náhodně
+s&nbsp;normálním rozložením a o návratovou hodnotu funkce
+<strong>compute_xor</strong>. Dvojice náhodných čísel bude představovat vstupní
+hodnoty do trénované sítě, návratová hodnota funkce
+<strong>compute_xor</strong> pak očekávaný výsledek. Připravíme si 2000
+takových záznamů:</p>
+
+<pre>
+TRAINING_DATA_SIZE = 2000
+</pre>
+
+<p>Naše varianta do značné míry zobecněné funkce xor vrátí hodnotu -1
+v&nbsp;případě, že znaménka vstupních číselných hodnot jsou shodná a hodnotu 1
+v&nbsp;opačném případě:</p>
+
+<pre>
+function compute_xor(x, y)
+    if x * y &gt; 0 then
+        return -1
+    else
+        return 1
+    end
+end
+</pre>
+
+<p>Funkce nazvaná <strong>prepare_training_data</strong> skutečně připraví
+trénovací data pro neuronovou síť. Povšimněte si, jak musí být výsledný objekt
+zkonstruován &ndash; základem je objekt představovaný poli dvojic, přičemž
+první prvek dvojice tvoří vstupní data (tenzor!) a druhý prvek pak data
+očekávaná, tedy výstupní. V&nbsp;případe výstupních dat se taktéž musí jednat o
+tenzor, v&nbsp;našem případě pak o tenzor s&nbsp;jediným prvkem. Navíc musíme
+do výsledného objektu přidat metodu <strong>size</strong> vracející počet
+záznamů (mimochodem &ndash; protože se jedná o metodu, je data možné připravit
+i <i>generátorem</i>):</p>
+
+<pre>
+function prepare_training_data(training_data_size)
+&nbsp;
+    <i>-- objekt který reprezentuje trénovací data</i>
+    local training_data = {}
+&nbsp;
+    <i>-- metoda size vrací počet záznamů</i>
+    function training_data:size() return training_data_size end
+&nbsp;
+    <i>-- příprava jednotlivých záznamů</i>
+    for i = 1,training_data_size do
+&nbsp;
+        <i>-- vstupem je tenzor se dvěma prvky/komponentami</i>
+        local input = torch.randn(2)
+&nbsp;
+        <i>-- výstupem je tenzor s jediným prvkem/komponentou</i>
+        local output = torch.Tensor(1)
+        output[1] = compute_xor(input[1], input[2])
+&nbsp;
+        <i>-- dvojice vstup+výstup tvoří jeden záznam trénovacích dat</i>
+        training_data[i] = {input, output}
+&nbsp;
+    end
+    return training_data
+end
+</pre>
+
+<p>To je vše &ndash; stačí jen zavolat funkci
+<strong>prepare_training_data</strong> a uložit si její výsledek do
+proměnné:</p>
+
+<pre>
+training_data = prepare_training_data(TRAINING_DATA_SIZE)
+</pre>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Konstrukce neuronové sítě se třemi vrstvami</h2>
+
+<p>Trénovací data máme připravena, takže se nyní zaměříme na poněkud složitější
+úkol. Budeme totiž muset vytvořit neuronovou síť se třemi vrstvami neuronů.
+Počet vstupních neuronů (neuronů na vstupní vrstvě) bude roven dvěma, protože
+odpovídá počtu vstupních hodnot. Výstupní neuron bude jediný, protože
+optimisticky na výstupu očekáváme hodnotu -1 nebo 1. Na prostřední skryté
+vrstvě vytvoříme dvacet neuronů, což je v&nbsp;tomto případě až absurdně velký
+počet, protože teoreticky budou postačovat tři neurony. Pro snadnou modifikaci
+kódu si tyto údaje zapíšeme do globálních proměnných:</p>
+
+<pre>
+INPUT_NEURONS = 2
+HIDDEN_NEURONS = 20
+OUTPUT_NEURONS = 1
+</pre>
+
+<p>Ve funkci pro konstrukci neuronové sítě nejprve deklarujeme typ sítě
+konstruktorem <strong>Sequential</strong>. Tento konstruktor vytvoří síť,
+v&nbsp;níž jsou jednotlivé vrstvy propojeny jednosměrně (<i>feed-forward</i>) a
+všechny neurony z&nbsp;jedné vrstvy jsou propojeny se všemi neurony na vrstvě
+další. Dále metodou <strong>add</strong> do sítě postupně přidáme:</p>
+
+<ol>
+<li>Propojení mezi vstupní vrstvou a skrytou vrstvou (<strong>nn.Linear</strong>, lineární transformace y=Ax+b)</li>
+<li>Aktivační funkci (<strong>nn.Tanh</strong>, ovšem pouze do prostřední/skryté vrstvy)</li>
+<li>Propojení mezi skrytou vrstvou a výstupní vrstvou (<strong>nn.Linear</strong>)</li>
+</ol>
+
+<pre>
+function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
+    <i>-- typ sítě typu feed-forward, v níž jsou propojeny všechny neurony mezi vrstvami</i>
+    local network = nn.Sequential()
+&nbsp;
+    <i>-- specifikace vstupní vrstvy: počet vstupů, počet neuronů na skryté vrstvě</i>
+    network:add(nn.Linear(input_neurons, hidden_neurons))
+    <i>-- aktivační funkce pro neurony na skryté vrstvě</i>
+    network:add(nn.Tanh())
+    <i>-- specifikace výstupní vrstvy: počet vstupů ze skryté vrstvy, počet výstupních neuronů</i>
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+&nbsp;
+    <i>-- síť máme vytvořenou</i>
+    return network
+end
+</pre>
+
+<p>Zkusme si nyní zkonstruovat výše popsanou umělou neuronovou síť a následně
+si nechat vypsat její strukturu:</p>
+
+<pre>
+network = construct_neural_network(INPUT_NEURONS, HIDDEN_NEURONS, OUTPUT_NEURONS)
+print(network)
+</pre>
+
+<p>Příkaz <strong>print(network)</strong> by měl symbolicky naznačit strukturu
+neuronové sítě:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; output]
+  (1): nn.Linear(2 -&gt; 20)
+  (2): nn.Tanh
+  (3): nn.Linear(20 -&gt; 1)
+}
+</pre>
+
+<p>Jediná nelinearita byla přidána do prostřední vrstvy, což není &ndash; jak
+uvidíme z&nbsp;výsledků &ndash; optimální. Jak tento problém napravit si
+ukážeme ve <a href="#k14">čtrnácté kapitole</a>.</p>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Trénink neuronové sítě</h2>
+
+<p>Neuronovou síť již máme vytvořenou, ovšem musíme ji něco
+&bdquo;naučit&ldquo;, což znamená postupně doupravit váhy <i>w<sub>i</sub></i>
+vstupů jednotlivých neuronů. Váhy většinou jsou na začátku učení nastaveny
+náhodně, cílem učení je pak v&nbsp;ideálním případě dosáhnout globálního minima
+chyby odhadu sítě vůči očekávaným výsledkům. Pro trénink (s&nbsp;využitím
+algoritmu backpropagation) potřebujeme stanovit kritérium a taktéž určit směr
+hledání globálního minima. Parametrem <strong>learning_rate</strong> se stanoví
+rychlost učení (zjednodušeně řečeno míra ovlivnění vah <i>w<sub>i</sub></i>
+v&nbsp;každé iteraci učení), která však nemůže být příliš vysoká, neboť by to
+ovlivnilo celkový výsledek (opět velmi zjednodušeně řečeno: poslední trénovací
+vzorky by ho příliš ovlivnily):</p>
+
+<pre>
+function train_neural_network(network, training_data, learning_rate, max_iteration)
+    local criterion = nn.MSECriterion()
+    local trainer = nn.StochasticGradient(network, criterion)
+    trainer.learningRate = learning_rate
+    trainer.maxIteration = max_iteration
+    trainer:train(training_data)
+end
+</pre>
+
+<p>Spustíme celý trénink:</p>
+
+<pre>
+train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+</pre>
+
+<p>Můžeme sledovat průběh tréninku, kdy nám systém vypisuje, jaká je velikost
+chyby pro jednotlivé vstupy, tj.&nbsp;pro trénovací data (dvojice vstupů a
+očekávaných výstupů). Zpočátku může být chyba hodně velká, protože
+v&nbsp;prvotním stavu jsou váhy na vstupech neuronů nastaveny na náhodnou
+hodnotu:</p>
+
+<pre>
+# StochasticGradient: training
+# current error = 0.54242233556529
+# current error = 0.37642565798334
+# current error = 0.34209057999057
+# current error = 0.30198045696604
+# current error = 0.27091862342749
+# current error = 0.25200259699324
+</pre>
+
+<p>Velká chyba na začátku nás však nemusí trápit, protože v&nbsp;ideálním
+případě by velikost chyby měla postupně (a poměrně rychle) klesat. Pokud chyba
+klesá pomalu, což je mimochodem i náš případ, může to znamenat, že je
+v&nbsp;síti málo nelineárních přechodů.  Může se také stát, že velikost chyby
+bude oscilovat &ndash; klesat a zase růst. To může znamenat příliš malý počet
+neuronů, které nestačí pro zapamatování &bdquo;funkce&ldquo; celé sítě:</p>
+
+<pre>
+# current error = 0.11337547166271
+# current error = 0.11332347785516
+# current error = 0.11327187176746
+# current error = 0.11322063535328
+# StochasticGradient: you have reached the maximum number of iterations
+# training error = 0.11322063535328
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Použití neuronové sítě na sadě validačních dat</h2>
+
+<p>Neuronovou síť jsme s&nbsp;využitím trénovacího vzorku dat naučili vrátit
+výsledek zobecněné funkce xor, i když popravdě řečeno byla chyba na konci stále
+příliš velká. Pokusme se nyní validovat, jestli je tento předpoklad správný a
+jestli síť dává alespoň trošku rozumné výsledky. Validace může být velmi
+snadná, protože můžeme použít metodu <strong>forward</strong>, která pošle
+vstupní data (tenzor) do vstupní vrstvy neuronů, nechá síť vypočítat výstup a
+tento výstup vrátí, opět ve formě tenzoru. V&nbsp;našem případě musí být na
+vstup poslán tenzor se dvěma prvky (komponentami) a na výstupu očekáváme
+jednoprvkový tenzor:</p>
+
+<pre>
+x=torch.Tensor({0.5, -0.5})
+prediction = network:forward(x)
+print(prediction)
+</pre>
+
+<p>Na standardní výstup by se měl vypsat výsledek výpočtu, například:</p>
+
+<pre>
+ <strong>1.0478</strong>
+[torch.DoubleTensor of size 1]
+</pre>
+
+<p>Očekávaná ideální hodnota je přitom rovna 1.</p>
+
+<p>Poznámka: ve vašem případě může být výsledek odlišný, protože je závislý na
+stavu sítě na začátku tréninku i na vlastních trénovacích datech, které byly
+vygenerovány pomocí funkce <strong>randn</strong>.</p>
+
+<p>Lepší bude si na validaci sítě vytvořit novou uživatelskou funkci, která
+bude na vstup sítě předávat zvolená data, vypočte exaktní výsledek funkcí
+<strong>compute_xor</strong>, zjistí predikci neuronové sítě, oba výsledky
+porovná a navíc vypočte relativní chybu (v&nbsp;procentech, což obecně
+znevýhodňuje predikce v&nbsp;okolí nuly; to ovšem není náš případ). Tato funkce
+může vypadat následovně:</p>
+
+<pre>
+function validate_neural_network(network, validation_data)
+    for i,d in ipairs(validation_data) do
+        <i>-- dvě hodnoty, pro něž se vypočte xor</i>
+        d1, d2 = d[1], d[2]
+&nbsp;
+        <i>-- vstupem do sítě musí být tenzor</i>
+        input = torch.Tensor({d1, d2})
+&nbsp;
+        <i>-- predikce sítě je také tenzor, takže přečteme jeho jediný prvek</i>
+        prediction = network:forward(input)[1]
+&nbsp;
+        <i>-- korektní výsledek</i>
+        correct = compute_xor(d1, d2)
+&nbsp;
+        <i>-- relativní chyba</i>
+        err = math.abs(100.0 * (prediction-correct)/correct)
+&nbsp;
+        <i>-- vše vypíšeme</i>
+        msg = string.format("%2d  %+6.3f  %+6.3f  %+6.3f  %+6.3f  %4.0f%%", i, d1, d2, correct, prediction, err)
+        print(msg)
+    end
+end
+</pre>
+
+<p>Data pro validaci mohou vypadat například takto:</p>
+
+<pre>
+validation_data = {
+    { 1.0,  1,0},
+    { 0.5,  0.5},
+    { 0.2,  0.2},
+    -------------
+    {-1.0,  1,0},
+    {-0.5,  0.5},
+    {-0.2,  0.2},
+    -------------
+    { 1.0, -1,0},
+    { 0.5, -0.5},
+    { 0.2, -0.2},
+    -------------
+    {-1.0, -1,0},
+    {-0.5, -0.5},
+    {-0.2, -0.2},
+}
+</pre>
+
+<p>Spustíme validaci:</p>
+
+<pre>
+validate_neural_network(network, validation_data)
+</pre>
+
+<p>A dostaneme tyto výsledky, které ovšem nejsou příliš přesné (viz vypočtená
+relativní chyba):</p>
+
+<pre>
+ 1  +1.000  +1.000  -1.000  -1.278    28%
+ 2  +0.500  +0.500  -1.000  -1.022     2%
+ 3  +0.200  +0.200  -1.000  -1.116    12%
+ 4  -1.000  +1.000  +1.000  +1.128    13%
+ 5  -0.500  +0.500  +1.000  +0.861    14%
+ 6  -0.200  +0.200  +1.000  +0.814    19%
+ 7  +1.000  -1.000  +1.000  +0.722    28%
+ 8  +0.500  -0.500  +1.000  +1.048     5%
+ 9  +0.200  -0.200  +1.000  +0.745    25%
+10  -1.000  -1.000  -1.000  -0.947     5%
+11  -0.500  -0.500  -1.000  -0.685    32%
+12  -0.200  -0.200  -1.000  -0.975     3%
+</pre>
+
+<p>V&nbsp;navazujících kapitolách si ukážeme možná vylepšení (i zhoršení
+kvality) naší sítě.</p>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Úplný zdrojový kód dnešního prvního demonstračního příkladu</h2>
+
+<p>V&nbsp;předchozích kapitolách jsme si ukázali jednotlivé části příkladu
+s&nbsp;jednoduchou umělou neuronovou sítí. Úplný zdrojový kód tohoto příkladu
+můžete získat z&nbsp;adresy <a
+href="https://github.com/tisnik/torch-examples/blob/master/nn/01_xor_problem.lua">https://github.com/tisnik/torch-examples/blob/master/nn/01_xor_problem.lua</a>,
+popř.&nbsp;si ho zkopírovat z&nbsp;následujícího výpisu:</p>
+
+<pre>
+require("nn")
+&nbsp;
+TRAINING_DATA_SIZE = 2000
+&nbsp;
+INPUT_NEURONS = 2
+HIDDEN_NEURONS = 20
+OUTPUT_NEURONS = 1
+&nbsp;
+MAX_ITERATION = 200
+LEARNING_RATE = 0.01
+&nbsp;
+&nbsp;
+function compute_xor(x, y)
+    if x * y &gt; 0 then
+        return -1
+    else
+        return 1
+    end
+end
+&nbsp;
+&nbsp;
+function prepare_training_data(training_data_size)
+    local training_data = {}
+    function training_data:size() return training_data_size end
+    for i = 1,training_data_size do
+        local input = torch.randn(2)
+        local output = torch.Tensor(1)
+        output[1] = compute_xor(input[1], input[2])
+        training_data[i] = {input, output}
+    end
+    return training_data
+end
+&nbsp;
+&nbsp;
+function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
+    local network = nn.Sequential()
+&nbsp;
+    network:add(nn.Linear(input_neurons, hidden_neurons))
+    network:add(nn.Tanh())
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+    
+    return network
+end
+&nbsp;
+&nbsp;
+function train_neural_network(network, training_data, learning_rate, max_iteration)
+    local criterion = nn.MSECriterion()
+    local trainer = nn.StochasticGradient(network, criterion)
+    trainer.learningRate = learning_rate
+    trainer.maxIteration = max_iteration
+    trainer:train(training_data)
+end
+&nbsp;
+&nbsp;
+function validate_neural_network(network, validation_data)
+    for i,d in ipairs(validation_data) do
+        d1, d2 = d[1], d[2]
+        input = torch.Tensor({d1, d2})
+        prediction = network:forward(input)[1]
+        correct = compute_xor(d1, d2)
+        err = math.abs(100.0 * (prediction-correct)/correct)
+        msg = string.format("%2d  %+6.3f  %+6.3f  %+6.3f  %+6.3f  %4.0f%%", i, d1, d2, correct, prediction, err)
+        print(msg)
+    end
+end
+&nbsp;
+&nbsp;
+network = construct_neural_network(INPUT_NEURONS, HIDDEN_NEURONS, OUTPUT_NEURONS)
+training_data = prepare_training_data(TRAINING_DATA_SIZE)
+train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+print(network)
+&nbsp;
+&nbsp;
+x=torch.Tensor({0.5, -0.5})
+prediction = network:forward(x)
+print(prediction)
+&nbsp;
+validation_data = {
+    { 1.0,  1,0},
+    { 0.5,  0.5},
+    { 0.2,  0.2},
+    -------------
+    {-1.0,  1,0},
+    {-0.5,  0.5},
+    {-0.2,  0.2},
+    -------------
+    { 1.0, -1,0},
+    { 0.5, -0.5},
+    { 0.2, -0.2},
+    -------------
+    {-1.0, -1,0},
+    {-0.5, -0.5},
+    {-0.2, -0.2},
+}
+&nbsp;
+validate_neural_network(network, validation_data)
+</pre>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Parametry ovlivňující chování sítě</h2>
+
+<p>Mezi základní parametry, které ovlivňují chování sítě, tj.&nbsp;zejména
+rychlost a přesnost učení i přesnost předpovědi výsledků, patří počet vrstev
+sítě, počet neuronů na jednotlivých vrstvách (kromě vrstvy první a poslední,
+protože tam je počet ovlivněn velikostí vstupních a výstupních vektorů). Počty
+neuronů můžeme ovlivnit snadno, například zmenšením počtu neuronů na prostřední
+(skryté) vrstvě:</p>
+
+<pre>
+INPUT_NEURONS = 2
+<strong>HIDDEN_NEURONS = 10</strong>
+OUTPUT_NEURONS = 1
+</pre>
+
+<p>Dále si povšimněte, že nelineární funkce byla původně nakonfigurována pouze pro prostřední (skrytou) vrstvu:</p>
+
+<pre>
+function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
+    <i>-- typ sítě typu feed-forward, v níž jsou propojeny všechny neurony mezi vrstvami</i>
+    local network = nn.Sequential()
+&nbsp;
+    <i>-- specifikace vstupní vrstvy: počet vstupů, počet neuronů na skryté vrstvě</i>
+    network:add(nn.Linear(input_neurons, hidden_neurons))
+    <i>-- aktivační funkce pro neurony na skryté vrstvě</i>
+    network:add(nn.Tanh())
+    <i>-- specifikace výstupní vrstvy: počet vstupů ze skryté vrstvy, počet výstupních neuronů</i>
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+&nbsp;
+    <i>-- síť máme vytvořenou</i>
+    return network
+end
+</pre>
+
+<p>Můžete si samozřejmě přidat stejnou funkci i pro výstupní neurony:</p>
+
+<pre>
+function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
+    <i>-- typ sítě typu feed-forward, v níž jsou propojeny všechny neurony mezi vrstvami</i>
+    local network = nn.Sequential()
+&nbsp;
+    <i>-- specifikace vstupní vrstvy: počet vstupů, počet neuronů na skryté vrstvě</i>
+    network:add(nn.Linear(input_neurons, hidden_neurons))
+    <i>-- aktivační funkce pro neurony na skryté vrstvě</i>
+    network:add(nn.Tanh())
+    <i>-- specifikace výstupní vrstvy: počet vstupů ze skryté vrstvy, počet výstupních neuronů</i>
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+    <i>-- druhá sada aktivačních funkcí</i>
+    <strong>network:add(nn.Tanh())</strong>
+&nbsp;
+    <i>-- síť máme vytvořenou</i>
+    return network
+end
+</pre>
+
+<p>Struktura sítě se pozmění následovně:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+  (1): nn.Linear(2 -&gt; 10)
+  (2): nn.Tanh
+  (3): nn.Linear(10 -&gt; 1)
+  (4): nn.Tanh
+}
+</pre>
+
+<p>Zajímavé je, že výsledky se přidáním další nelinearity do systému sítě
+razantně zlepší:</p>
+
+<pre>
+ 1  +1.000  +1.000  -1.000  -1.000     0%
+ 2  +0.500  +0.500  -1.000  -1.000     0%
+ 3  +0.200  +0.200  -1.000  -0.995     1%
+ 4  -1.000  +1.000  +1.000  +1.000     0%
+ 5  -0.500  +0.500  +1.000  +1.000     0%
+ 6  -0.200  +0.200  +1.000  +0.996     0%
+ 7  +1.000  -1.000  +1.000  +1.000     0%
+ 8  +0.500  -0.500  +1.000  +1.000     0%
+ 9  +0.200  -0.200  +1.000  +0.999     0%
+10  -1.000  -1.000  -1.000  -1.000     0%
+11  -0.500  -0.500  -1.000  -1.000     0%
+12  -0.200  -0.200  -1.000  -0.951     5%
+</pre>
+
+<p>Co to znamená? Počet neuronů nemusí být vždy tím rozhodujícím parametrem
+určujícím kvalitu sítě.</p>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Příliš malý počet neuronů ve skryté vrstvě</h2>
+
+<p>Neustálé zvyšování počtu neuronů ve skryté vrstvě nemusí vést k&nbsp;lepším
+výsledkům, ovšem snížení neuronů pod určitou hranici je ještě horší. Upravme si
+(již jednou upravený) příklad tak, že do prostřední vrstvy umístíme pouhé dva
+neurony:</p>
+
+<pre>
+INPUT_NEURONS = 2
+HIDDEN_NEURONS = 2
+OUTPUT_NEURONS = 1
+</pre>
+
+<p>Takto malý počet neuronů (resp.&nbsp;jejich vah, což je stav sítě) je již
+velmi malý a síť se nedokáže naučit správně předpovídat výslednou hodnotu. I po
+několika stech iteracích je chyba stále velká (a nebude klesat):</p>
+
+<pre>
+# current error = 0.68643851757531
+# StochasticGradient: you have reached the maximum number of iterations
+# training error = 0.68643851757531
+</pre>
+
+<p>Chyby jsou nízké pro ty vstupní hodnoty, na které byly neurony naučeny
+v&nbsp;posledních iteracích, ovšem pro ostatní hodnoty jsou výsledky
+neakceptovatelné:</p>
+
+<pre>
+ 1  +1.000  +1.000  -1.000  -1.000     0%
+ 2  +0.500  +0.500  -1.000  -0.871    13%
+ 3  +0.200  +0.200  -1.000  -0.051    95%
+ 4  -1.000  +1.000  +1.000  +0.005   100%
+ 5  -0.500  +0.500  +1.000  +0.003   100%
+ 6  -0.200  +0.200  +1.000  +0.001   100%
+ 7  +1.000  -1.000  +1.000  +1.000     0%
+ 8  +0.500  -0.500  +1.000  +0.924     8%
+ 9  +0.200  -0.200  +1.000  +0.107    89%
+10  -1.000  -1.000  -1.000  +0.005   101%
+11  -0.500  -0.500  -1.000  +0.008   101%
+12  -0.200  -0.200  -1.000  +0.013   101%
+</pre>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Jednoduchá síť odhadující součet dvou prvků</h2>
+
+<p>Zkusme si nyní vytvořit ještě jednodušší síť a naučit ji sčítat dva prvky
+(v&nbsp;omezeném intervalu okolo nuly). Od předchozích příkladů bude zdrojový
+kód odlišný jen v&nbsp;několika maličkostech.</p>
+
+<p>Snížíme množství trénovacích dat na čtvrtinu:</p>
+
+<pre>
+TRAINING_DATA_SIZE = 500
+</pre>
+
+<p>Počet neuronů na prostřední vrstvě snížíme na pouhé dva (zde to však nebude
+tak vadit):</p>
+
+<pre>
+HIDDEN_NEURONS = 2
+</pre>
+
+<p>Funkce pro přípravu trénovacích dat se nepatrně pozmění:</p>
+
+<pre>
+function prepare_training_data(training_data_size)
+    local training_data = {}
+    function training_data:size() return training_data_size end
+    for i = 1,training_data_size do
+        local input = torch.randn(2)
+        local output = torch.Tensor(1)
+        output[1] = <strong>input[1] + input[2]</strong>
+        training_data[i] = {input, output}
+    end
+    return training_data
+end
+</pre>
+
+<p>A samozřejmě se změní i výpočet chyby při ověřování funkce sítě:</p>
+
+<pre>
+function validate_neural_network(network, validation_data)
+    for i,d in ipairs(validation_data) do
+        d1, d2 = d[1], d[2]
+        input = torch.Tensor({d1, d2})
+        prediction = network:forward(input)[1]
+        correct = <strong>d1 + d2</strong>
+        err = math.abs(100.0 * (prediction-correct)/correct)
+        msg = string.format("%2d  %+6.3f  %+6.3f  %+6.3f  %+6.3f  %4.0f%%", i, d1, d2, correct, prediction, err)
+        print(msg)
+    end
+end
+</pre>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Odhad součtu sítí využívající aktivační funkci Tanh</h2>
+
+<p>Takto minimalisticky pojatá síť s&nbsp;pouhými pěti neurony se naučí sčítat
+dobře, což ale není příliš překvapivé, protože právě suma je jednou ze
+základních funkcí neuronů:</p>
+
+<pre>
+# StochasticGradient: training
+# current error = 0.23437645781551
+# current error = 0.058120529550668
+# current error = 0.037139957667369
+# current error = 0.027343471089676
+# current error = 0.021707754740601
+# current error = 0.017588320527942
+# current error = 0.014216556244307
+...
+...
+...
+# current error = 0.00072523375142578
+# StochasticGradient: you have reached the maximum number of iterations
+# training error = 0.00072523375142578
+</pre>
+
+<p>Výsledky po natrénování:</p>
+
+<pre>
+ 1  +1.000  +1.000  +2.000  +2.011     1%
+ 2  +0.500  +0.500  +1.000  +0.992     1%
+ 3  +0.200  +0.200  +0.400  +0.394     2%
+ 4  -1.000  +1.100  +0.100  +0.098     2%
+ 5  -0.500  +0.600  +0.100  +0.097     3%
+ 6  -0.200  +0.300  +0.100  +0.097     3%
+ 7  +1.000  -1.100  -0.100  -0.103     3%
+ 8  +0.500  -0.600  -0.100  -0.102     2%
+ 9  +0.200  -0.300  -0.100  -0.101     1%
+10  -1.000  -1.000  -2.000  -2.038     2%
+11  -0.500  -0.500  -1.000  -1.003     0%
+12  -0.200  -0.200  -0.400  -0.399     0%
+</pre>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Použití aktivační funkce ReLU namísto Tanh</h2>
+
+<p>Pokusme se nyní v&nbsp;prostřední (tj.&nbsp;ve skryté) vrstvě neuronů
+nahradit aktivační funkci <strong>Tanh</strong> za funkci nazvanou poněkud
+záhadně <strong>ReLU</strong>. Zkratka ReLU byla odvozena od jména
+&bdquo;rectified linear unit&ldquo; a jedná se o nelineární funkci složenou ze
+dvou lineárních částí. Výpočet funkce ReLU je triviální:</p>
+
+<p>f(x) = max(0,x)</p>
+
+<p>Proč by měla být tato funkce výhodnější, než Tanh? Při výpočtu součtu je nám
+vlastně nelineární průběh funkcí spíše na obtíž, takže zkusíme zvolit funkci,
+která sice obsahuje &bdquo;zlom&ldquo;, ale budeme doufat, že díky biasu se
+tento zlom posune mimo vstupní hodnoty (vše je nutné ověřit na testovacích
+datech):</p>
+
+<pre>
+function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
+    local network = nn.Sequential()
+&nbsp;
+    network:add(nn.Linear(input_neurons, hidden_neurons))
+    -- výběr nelineární funkce
+    <strong>network:add(nn.ReLU())</strong>
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Už při tréninku sítě můžeme vidět, že jsme zvolili správně, neboť chyba je
+po dokončení tréninku prakticky nulová (konkrétně
+5,1&times;10<sup>-31</sup>):</p>
+
+<pre>
+# StochasticGradient: training
+# current error = 0.99281388376557
+# current error = 0.10862510985273
+# current error = 0.036692037190132
+# current error = 0.026179566474767
+# current error = 0.020993037406808
+# current error = 0.015662650169726
+# current error = 0.0096425797438203
+# current error = 0.0048635968724402
+...
+...
+...
+# current error = 5.1172035659567e-31
+# StochasticGradient: you have reached the maximum number of iterations
+# training error = 5.1172035659567e-31
+</pre>
+
+<p>Ještě lépe dopadne otestování sítě, neboť výpočet je přesný minimálně na tři
+desetinná místa:</p>
+
+<pre>
+ 1  +1.000  +1.000  +2.000  +2.000     0%
+ 2  +0.500  +0.500  +1.000  +1.000     0%
+ 3  +0.200  +0.200  +0.400  +0.400     0%
+ 4  -1.000  +1.100  +0.100  +0.100     0%
+ 5  -0.500  +0.600  +0.100  +0.100     0%
+ 6  -0.200  +0.300  +0.100  +0.100     0%
+ 7  +1.000  -1.100  -0.100  -0.100     0%
+ 8  +0.500  -0.600  -0.100  -0.100     0%
+ 9  +0.200  -0.300  -0.100  -0.100     0%
+10  -1.000  -1.000  -2.000  -2.000     0%
+11  -0.500  -0.500  -1.000  -1.000     0%
+12  -0.200  -0.200  -0.400  -0.400     0%
+</pre>
+
+<p>Příště si mj.&nbsp;ukážeme, že je navíc možné drasticky snížit počet neuronů
+na prostřední vrstvě, a to bez vlivu na výsledky.</p>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Úplný zdrojový kód dnešního druhého demonstračního příkladu</h2>
+
+<p>Podobně jako jsme si <a href="#k13">ukázali úplný kód prvního příkladu</a>
+s&nbsp;neuronovou sítí pro odhad funkce xor, si ukážeme i druhý příklad,
+v&nbsp;němž je síť natrénována pro součet dvou čísel, ovšem v&nbsp;dosti
+omezeném rozsahu. Tento příklad v&nbsp;případě zájmu opět naleznete na GitHubu,
+konkrétně na adrese <a
+href="https://github.com/tisnik/torch-examples/blob/master/nn/04_adder.lua">https://github.com/tisnik/torch-examples/blob/master/nn/04_adder.lua</a>:</p>
+
+<pre>
+require("nn")
+&nbsp;
+TRAINING_DATA_SIZE = 500
+&nbsp;
+INPUT_NEURONS = 2
+HIDDEN_NEURONS = 2
+OUTPUT_NEURONS = 1
+&nbsp;
+MAX_ITERATION = 200
+LEARNING_RATE = 0.01
+&nbsp;
+&nbsp;
+function prepare_training_data(training_data_size)
+    local training_data = {}
+    function training_data:size() return training_data_size end
+    for i = 1,training_data_size do
+        local input = torch.randn(2)
+        local output = torch.Tensor(1)
+        output[1] = input[1] + input[2]
+        training_data[i] = {input, output}
+    end
+    return training_data
+end
+&nbsp;
+&nbsp;
+function construct_neural_network(input_neurons, hidden_neurons, output_neurons)
+    local network = nn.Sequential()
+&nbsp;
+    network:add(nn.Linear(input_neurons, hidden_neurons))
+    -- výběr nelineární funkce
+    network:add(nn.ReLU())
+    --network:add(nn.Tanh())
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+&nbsp;
+    return network
+end
+&nbsp;
+&nbsp;
+function train_neural_network(network, training_data, learning_rate, max_iteration)
+    local criterion = nn.MSECriterion()
+    local trainer = nn.StochasticGradient(network, criterion)
+    trainer.learningRate = learning_rate
+    trainer.maxIteration = max_iteration
+    trainer:train(training_data)
+end
+&nbsp;
+&nbsp;
+function validate_neural_network(network, validation_data)
+    for i,d in ipairs(validation_data) do
+        d1, d2 = d[1], d[2]
+        input = torch.Tensor({d1, d2})
+        prediction = network:forward(input)[1]
+        correct = d1 + d2
+        err = math.abs(100.0 * (prediction-correct)/correct)
+        msg = string.format("%2d  %+6.3f  %+6.3f  %+6.3f  %+6.3f  %4.0f%%", i, d1, d2, correct, prediction, err)
+        print(msg)
+    end
+end
+&nbsp;
+&nbsp;
+network = construct_neural_network(INPUT_NEURONS, HIDDEN_NEURONS, OUTPUT_NEURONS)
+training_data = prepare_training_data(TRAINING_DATA_SIZE)
+train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+print(network)
+&nbsp;
+&nbsp;
+x=torch.Tensor({0.5, -0.5})
+prediction = network:forward(x)
+print(prediction)
+&nbsp;
+validation_data = {
+    { 1.0,  1,0},
+    { 0.5,  0.5},
+    { 0.2,  0.2},
+    -------------
+    {-1.0,  1.1},
+    {-0.5,  0.6},
+    {-0.2,  0.3},
+    -------------
+    { 1.0, -1.1},
+    { 0.5, -0.6},
+    { 0.2, -0.3},
+    -------------
+    {-1.0, -1,0},
+    {-0.5, -0.5},
+    {-0.2, -0.2},
+}
+&nbsp;
+validate_neural_network(network, validation_data)
+</pre>
+
+
+
+<p><a name="k20"></a></p>
+<h2 id="k20">20. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>Stránka projektu Torch<br />
+<a href="http://torch.ch/">http://torch.ch/</a>
+</li>
+
+<li>Torch: Serialization<br />
+<a href="https://github.com/torch/torch7/blob/master/doc/serialization.md">https://github.com/torch/torch7/blob/master/doc/serialization.md</a>
+</li>
+
+<li>Torch: modul image<br />
+<a href="https://github.com/torch/image/blob/master/README.md">https://github.com/torch/image/blob/master/README.md</a>
+</li>
+
+<li>Torch na GitHubu (několik repositářů)<br />
+<a href="https://github.com/torch">https://github.com/torch</a>
+</li>
+
+<li>Torch (machine learning), Wikipedia<br />
+<a href="https://en.wikipedia.org/wiki/Torch_%28machine_learning%29">https://en.wikipedia.org/wiki/Torch_%28machine_learning%29</a>
+</li>
+
+<li>Torch Package Reference Manual<br />
+<a href="https://github.com/torch/torch7/blob/master/README.md">https://github.com/torch/torch7/blob/master/README.md</a>
+</li>
+
+<li>Torch Cheatsheet<br />
+<a href="https://github.com/torch/torch7/wiki/Cheatsheet">https://github.com/torch/torch7/wiki/Cheatsheet</a>
+</li>
+
+<li>Neural network containres (Torch)<br />
+<a href="https://github.com/torch/nn/blob/master/doc/containers.md">https://github.com/torch/nn/blob/master/doc/containers.md</a>
+</li>
+
+<li>Simple layers<br />
+<a href="https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear">https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear</a>
+</li>
+
+<li>Transfer Function Layers<br />
+<a href="https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok">https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok</a>
+</li>
+
+<li>Feedforward neural network<br />
+<a href="https://en.wikipedia.org/wiki/Feedforward_neural_network">https://en.wikipedia.org/wiki/Feedforward_neural_network</a>
+</li>
+
+<li>Biologické algoritmy (4) - Neuronové sítě<br />
+<a href="https://www.root.cz/clanky/biologicke-algoritmy-4-neuronove-site/">https://www.root.cz/clanky/biologicke-algoritmy-4-neuronove-site/</a>
+</li>
+
+<li>Biologické algoritmy (5) - Neuronové sítě<br />
+<a href="https://www.root.cz/clanky/biologicke-algoritmy-5-neuronove-site/">https://www.root.cz/clanky/biologicke-algoritmy-5-neuronove-site/</a>
+</li>
+
+<li>Umělá neuronová síť (Wikipedia)<br />
+<a href="https://cs.wikipedia.org/wiki/Um%C4%9Bl%C3%A1_neuronov%C3%A1_s%C3%AD%C5%A5">https://cs.wikipedia.org/wiki/Um%C4%9Bl%C3%A1_neuronov%C3%A1_s%C3%AD%C5%A5</a>
+</li>
+
+<li>Učení s učitelem (Wikipedia)<br />
+<a href="https://cs.wikipedia.org/wiki/U%C4%8Den%C3%AD_s_u%C4%8Ditelem">https://cs.wikipedia.org/wiki/U%C4%8Den%C3%AD_s_u%C4%8Ditelem</a>
+</li>
+
+<li>Plotting with Torch7<br />
+<a href="http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/">http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/</a>
+</li>
+
+<li>Plotting Package Manual with Gnuplot<br />
+<a href="https://github.com/torch/gnuplot/blob/master/README.md">https://github.com/torch/gnuplot/blob/master/README.md</a>
+</li>
+
+<li>An Introduction to Tensors<br />
+<a href="https://math.stackexchange.com/questions/10282/an-introduction-to-tensors">https://math.stackexchange.com/questions/10282/an-introduction-to-tensors</a>
+</li>
+
+<li>Gaussian filter<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_filter">https://en.wikipedia.org/wiki/Gaussian_filter</a>
+</li>
+
+<li>Gaussian function<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_function">https://en.wikipedia.org/wiki/Gaussian_function</a>
+</li>
+
+<li>Laplacian/Laplacian of Gaussian<br />
+<a href="http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm">http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm</a>
+</li>
+
+<li>Odstranění šumu<br />
+<a href="https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu">https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu</a>
+</li>
+
+<li>Binary image<br />
+<a href="https://en.wikipedia.org/wiki/Binary_image">https://en.wikipedia.org/wiki/Binary_image</a>
+</li>
+
+<li>Erosion (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Erosion_%28morphology%29">https://en.wikipedia.org/wiki/Erosion_%28morphology%29</a>
+</li>
+
+<li>Dilation (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Dilation_%28morphology%29">https://en.wikipedia.org/wiki/Dilation_%28morphology%29</a>
+</li>
+
+<li>Mathematical morphology<br />
+<a href="https://en.wikipedia.org/wiki/Mathematical_morphology">https://en.wikipedia.org/wiki/Mathematical_morphology</a>
+</li>
+
+<li>Cvičení 10 - Morfologické operace<br />
+<a href="http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php">http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php</a>
+</li>
+
+<li>Differences between a matrix and a tensor<br />
+<a href="https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor">https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor</a>
+</li>
+
+<li>Qualitatively, what is the difference between a matrix and a tensor?<br />
+<a href="https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?">https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?</a>
+</li>
+
+<li>BLAS (Basic Linear Algebra Subprograms)<br />
+<a href="http://www.netlib.org/blas/">http://www.netlib.org/blas/</a>
+</li>
+
+<li>Basic Linear Algebra Subprograms (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms">https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms</a>
+</li>
+
+<li>Comparison of deep learning software<br />
+<a href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software</a>
+</li>
+
+<li>TensorFlow<br />
+<a href="https://www.tensorflow.org/">https://www.tensorflow.org/</a>
+</li>
+
+<li>Caffe2 (A New Lightweight, Modular, and Scalable Deep Learning Framework)<br />
+<a href="https://caffe2.ai/">https://caffe2.ai/</a>
+</li>
+
+<li>PyTorch<br />
+<a href="http://pytorch.org/">http://pytorch.org/</a>
+</li>
+
+<li>Seriál o programovacím jazyku Lua<br />
+<a href="http://www.root.cz/serialy/programovaci-jazyk-lua/">http://www.root.cz/serialy/programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (2)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (3)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (4)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (5 - tabulky a pole)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (6 - překlad programových smyček do mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (7 - dokončení popisu mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (8 - základní vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (9 - další vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (10 - JIT překlad do nativního kódu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (11 - JIT překlad do nativního kódu procesorů s architekturami x86 a ARM)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (12 - překlad operací s reálnými čísly)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/</a>
+</li>
+
+<li>Lua Profiler (GitHub)<br />
+<a href="https://github.com/luaforge/luaprofiler">https://github.com/luaforge/luaprofiler</a>
+</li>
+
+<li>Lua Profiler (LuaForge)<br />
+<a href="http://luaforge.net/projects/luaprofiler/">http://luaforge.net/projects/luaprofiler/</a>
+</li>
+
+<li>ctrace<br />
+<a href="http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</li>
+
+<li>The Lua VM, on the Web<br />
+<a href="https://kripken.github.io/lua.vm.js/lua.vm.js.html">https://kripken.github.io/lua.vm.js/lua.vm.js.html</a>
+</li>
+
+<li>Lua.vm.js REPL<br />
+<a href="https://kripken.github.io/lua.vm.js/repl.html">https://kripken.github.io/lua.vm.js/repl.html</a>
+</li>
+
+<li>lua2js<br />
+<a href="https://www.npmjs.com/package/lua2js">https://www.npmjs.com/package/lua2js</a>
+</li>
+
+<li>lua2js na GitHubu<br />
+<a href="https://github.com/basicer/lua2js-dist">https://github.com/basicer/lua2js-dist</a>
+</li>
+
+<li>Lua (programming language)<br />
+<a href="http://en.wikipedia.org/wiki/Lua_(programming_language)">http://en.wikipedia.org/wiki/Lua_(programming_language)</a>
+</li>
+
+<li>LuaJIT 2.0 SSA IR
+<a href="http://wiki.luajit.org/SSA-IR-2.0">http://wiki.luajit.org/SSA-IR-2.0</a>
+</li>
+
+<li>The LuaJIT Project<br />
+<a href="http://luajit.org/index.html">http://luajit.org/index.html</a>
+</li>
+
+<li>LuaJIT FAQ<br />
+<a href="http://luajit.org/faq.html">http://luajit.org/faq.html</a>
+</li>
+
+<li>LuaJIT Performance Comparison<br />
+<a href="http://luajit.org/performance.html">http://luajit.org/performance.html</a>
+</li>
+
+<li>LuaJIT 2.0 intellectual property disclosure and research opportunities<br />
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908">http://article.gmane.org/gmane.comp.lang.lua.general/58908</a>
+</li>
+
+<li>LuaJIT Wiki<br />
+<a href="http://wiki.luajit.org/Home">http://wiki.luajit.org/Home</a>
+</li>
+
+<li>LuaJIT 2.0 Bytecode Instructions<br />
+<a href="http://wiki.luajit.org/Bytecode-2.0">http://wiki.luajit.org/Bytecode-2.0</a>
+</li>
+
+<li>Programming in Lua (first edition)<br />
+<a href="http://www.lua.org/pil/contents.html">http://www.lua.org/pil/contents.html</a>
+</li>
+
+<li>Lua 5.2 sources<br />
+<a href="http://www.lua.org/source/5.2/">http://www.lua.org/source/5.2/</a>
+</li>
+
+<li>REPL<br />
+<a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop</a>
+</li>
+
+<li>The LLVM Compiler Infrastructure<br />
+<a href="http://llvm.org/ProjectsWithLLVM/">http://llvm.org/ProjectsWithLLVM/</a>
+</li>
+
+<li>clang: a C language family frontend for LLVM<br />
+<a href="http://clang.llvm.org/">http://clang.llvm.org/</a>
+</li>
+
+<li>LLVM Backend ("Fastcomp")<br />
+<a href="http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend">http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend</a>
+</li>
+
+<li>Lambda the Ultimate: Coroutines in Lua,<br />
+<a href="http://lambda-the-ultimate.org/node/438">http://lambda-the-ultimate.org/node/438</a>
+</li>
+
+<li>Coroutines Tutorial,<br />
+<a href="http://lua-users.org/wiki/CoroutinesTutorial">http://lua-users.org/wiki/CoroutinesTutorial</a>
+</li>
+
+<li>Lua Coroutines Versus Python Generators,<br />
+<a href="http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators">http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2017</small></p>
+</body>
+</html>
+

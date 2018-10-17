@@ -1,0 +1,1481 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Framework Torch: problematika rozpoznávání a klasifikace obrázků</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Framework Torch: problematika rozpoznávání a klasifikace obrázků</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>V deváté části seriálu o frameworku Torch se začneme zabývat problematikou rozpoznávání a klasifikace obrázků s využitím neuronových sítí. Nejdříve si ukážeme použití klasické třívrstvé neuronové sítě, zjistíme její limity a popíšeme si i alternativní typ: tzv. konvoluční sítě.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Framework Torch: problematika rozpoznávání a klasifikace obrázků</a></p>
+<p><a href="#k02">2. První verze generátoru trénovacích obrázků: číslic od 0 do 9</a></p>
+<p><a href="#k03">3. Ukázka vygenerovaných obrázků</a></p>
+<p><a href="#k04">4. Jednoduché zašumění trénovacích obrázků</a></p>
+<p><a href="#k05">5. Ukázka zašuměných obrázků</a></p>
+<p><a href="#k06">6. Použití klasické neuronové sítě pro rozpoznání číslic v&nbsp;obrázku</a></p>
+<p><a href="#k07">7. Průběh tréninku sítě</a></p>
+<p><a href="#k08">8. Grafické zobrazení klasifikace verifikačních obrázků</a></p>
+<p><a href="#k09">9. Ukázka výsledků odhadu sítě</a></p>
+<p><a href="#k10">10. Vliv postupného zvyšování šumu</a></p>
+<p><a href="#k11">11. Úplný zdrojový kód prvního příkladu</a></p>
+<p><a href="#k12">12. Kde je tedy problém?</a></p>
+<p><a href="#k13">13. Verifikace sítě s&nbsp;posunutými obrázky</a></p>
+<p><a href="#k14">14. Ukázka výsledků odhadu sítě pro posunuté obrázky</a></p>
+<p><a href="#k15">15. Zdrojový kód druhého příkladu</a></p>
+<p><a href="#k16">16. Vylepšení architektury neuronových sítí aneb konvoluční sítě</a></p>
+<p><a href="#k17">17. Vrstvy v&nbsp;konvolučních sítích</a></p>
+<p><a href="#k18">18. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k19">19. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Framework Torch: problematika rozpoznávání a klasifikace obrázků</h2>
+
+<p>Na předchozí dvě části [<a
+href="https://www.root.cz/clanky/framework-torch-zaklady-prace-s-neuronovymi-sitemi/">1</a>]
+[<a
+href="https://www.root.cz/clanky/framework-torch-konfigurace-neuronovych-siti-a-pouziti-ruznych-typu-aktivacnich-funkci/">2</a>]
+<a
+href="https://www.root.cz/serialy/torch-framework-pro-strojove-uceni/">seriálu
+o frameworku Torch</a>, v&nbsp;nichž jsme se seznámili s&nbsp;postupem, který
+se používá při tvorbě umělých neuronových sítí s&nbsp;pravidelnou strukturou
+tvořenou jednotlivými vrstvami, u nichž učení probíhá s&nbsp;využitím
+takzvaného <i>backpropagation</i> algoritmu (algoritmu zpětného šíření), dnes
+navážeme. Budeme se totiž zabývat problematikou rozpoznávání a klasifikace
+rastrových obrázků, které sice budou zpočátku velmi malé a budou obsahovat
+poměrně dobře predikovatelná data, ovšem i na takto malých obrázcích si ukážeme
+některé nevýhody klasických obecných neuronových sítí při jejich aplikaci na
+rastrová data.</p>
+
+<p>V&nbsp;závěru článku se navíc seznámíme s&nbsp;principy, na nichž jsou
+postaveny takzvané <i>konvoluční neuronové sítě</i>. Ty jsou dnes velmi
+populární, a to hned z&nbsp;několika důvodů &ndash; po natrénování sítě (to je
+sice časově náročné, ovšem s&nbsp;moderními GPU již většinou uspokojivě
+řešitelné) jsou již konvoluční sítě poměrně rychlé a především se rozšiřují
+možnosti, kde je možné tyto sítě prakticky použít (doprava, průmysl atd.).</p>
+
+<div class="rs-box">Důležitá poznámka na úvod: dnes představené neuronové sítě
+budou prozatím ještě velmi primitivní na to, aby dokázaly uspokojivě rozpoznat
+například číslice ze známé databáze <a
+href="http://yann.lecun.com/exdb/mnist/">http://yann.lecun.com/exdb/mnist/</a>.
+Ovšem již příště tuto databázi použijeme společně s&nbsp;vylepšenými
+konvolučními sítěmi.</div>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. První verze generátoru trénovacích obrázků: číslic od 0 do 9</h2>
+
+<p>Jak jsme si již řekli v&nbsp;úvodním odstavci, budeme se dnes snažit
+s&nbsp;využitím jednoduchých neuronových sítí rozpoznávat objekty na velmi
+malých obrázcích. Konkrétně se bude jednat o vstupní obrázky s&nbsp;pevným
+rozlišením pouhých 8&times;8 pixelů, což nám mj.&nbsp;umožní velmi rychlý
+tréning sítě. Obrázky budou reprezentovány ve stupních šedi a úkolem postupně
+vytvářené neuronové sítě bude na těchto obrázcích rozpoznat číslice 0 až 9
+zapsané pro jednoduchost předem známým fontem (příště už budeme mít horší úkol,
+protože číslice budou napsány rukou). Abychom získali představu, jak tyto
+číslice vypadají, necháme si vygenerovat testovací obrázky, a to
+z&nbsp;následujících vstupních dat:</p>
+
+<pre>
+digits = {
+    {0x00, 0x3C, 0x66, 0x76, 0x6E, 0x66, 0x3C, 0x00},
+    {0x00, 0x18, 0x1C, 0x18, 0x18, 0x18, 0x7E, 0x00},
+    {0x00, 0x3C, 0x66, 0x30, 0x18, 0x0C, 0x7E, 0x00},
+    {0x00, 0x7E, 0x30, 0x18, 0x30, 0x66, 0x3C, 0x00},
+    {0x00, 0x30, 0x38, 0x3C, 0x36, 0x7E, 0x30, 0x00},
+    {0x00, 0x7E, 0x06, 0x3E, 0x60, 0x66, 0x3C, 0x00},
+    {0x00, 0x3C, 0x06, 0x3E, 0x66, 0x66, 0x3C, 0x00},
+    {0x00, 0x7E, 0x60, 0x30, 0x18, 0x0C, 0x0C, 0x00},
+    {0x00, 0x3C, 0x66, 0x3C, 0x66, 0x66, 0x3C, 0x00},
+    {0x00, 0x3C, 0x66, 0x7C, 0x60, 0x30, 0x1C, 0x00},
+    }
+</pre>
+
+<p>Každá číslice, jejíž tvar je zakódován v&nbsp;poli <strong>digits</strong>,
+je reprezentována osmicí bajtů, protože každý bajt reprezentuje osm sousedních
+pixelů. Celkem tedy vstupní data obsahují osmdesát bajtů (deset číslic &times;
+osm bajtů).</p>
+
+<p>Rastrové podoby jednotlivých číslic se uloží do externích souborů
+s&nbsp;využitím formátu <strong>PGM</strong> (<i>Portable GrayMap</i>), který
+již na stránkách Rootu <a
+href="https://www.root.cz/clanky/graficke-formaty-ve-znameni-unixu/#k04">byl
+poměrně podrobně popsán</a>. Následující funkce se postará a vytvoření
+rastrového obrázku ze vstupních dat (používá se výše zmíněné pole
+<strong>digits</strong>). Povšimněte si, že využíváme jedné vlastnosti
+specifické pro PGM &ndash; uvedeme, že maximální hodnota pixelu je rovna 1,
+tudíž se nemusíme starat o převod jeho světlosti do rozsahu 0..255:</p>
+
+<pre>
+function <strong>generate_exact_image</strong>(filename, digit)
+    if digit &lt; 0 or digit &gt; 9 then
+        return
+    end
+    codes = digits[digit+1]
+&nbsp;
+    local fout = io.open(filename, "w")
+    if not fout then
+        return
+    end
+&nbsp;
+    <i>-- hlavicka</i>
+    fout:write("P2\n8 8\n1\n")
+&nbsp;
+    for _, code in ipairs(codes) do
+        <i>-- pouze pro ladeni</i>
+        local s = ""
+        for i = 1,8 do
+            local bit = code % 2
+            fout:write(bit)
+            fout:write(" ")
+            <i>-- pouze pro ladeni</i>
+            s = s .. bit
+            code = (code - bit)/2
+        end
+        <i>-- pouze pro ladeni</i>
+        print(s)
+    end
+    print()
+    fout:close()
+end
+</pre>
+
+<p>Příklad jednoduché bitmapy o rozměrech 8&times;8 pixelů. Bitmapa obsahuje
+tvar číslice 0:</p>
+
+<pre>
+P2
+8 8
+1
+0 0 0 0 0 0 0 0
+0 0 1 1 1 1 0 0
+0 1 1 0 0 1 1 0
+0 1 1 0 1 1 1 0
+0 1 1 1 0 1 1 0
+0 1 1 0 0 1 1 0
+0 0 1 1 1 1 0 0
+0 0 0 0 0 0 0 0
+</pre>
+
+<p>Poznámka: ve skutečnosti se v&nbsp;datech bitmapy nemusí používat konce
+řádků (ty &bdquo;jen&ldquo; zvyšují čitelnost pro člověka), takže je možný i
+tento formát:</p>
+
+<pre>
+P2
+8 8
+1
+0 0 0 0 0 0 0 0 0 0 1 1 1 1 0 0 0 1 1 0 0 1 1 0 0 1 1 0 1 1 1 0 0 1 1 1 0 1 1 0 0 1 1 0 0 1 1 0 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 0
+</pre>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Ukázka vygenerovaných obrázků</h2>
+
+<p>Rastrové obrázky s&nbsp;tvary jednotlivých číslic již dokážeme vygenerovat
+triviálním způsobem:</p>
+
+<pre>
+for digit = 0, 9 do
+    local filename = string.format("digit_%d.pgm", digit)
+    generate_exact_image(filename, digit)
+end
+</pre>
+
+<p>Podívejme se nyní na vygenerované výsledky, tj.&nbsp;na bitmapy
+s&nbsp;číslicemi. Všechny obrázky byly v&nbsp;horizontálním i vertikálním směru
+zvětšeny dvacetkrát, takže se z&nbsp;mini-bitmap o rozměrech 8&times;8 pixelů
+staly už dobře rozpoznatelné bitmapy o rozměrech 160&times;160 pixelů:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-1.png" class="image-314021" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 1: Tvar číslice 0.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-2.png" class="image-314022" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 2: Tvar číslice 1.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-3.png" class="image-314023" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 3: Tvar číslice 2.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-4.png" class="image-314024" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 4: Tvar číslice 3.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-5.png" class="image-314025" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 5: Tvar číslice 4.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-6.png" class="image-314026" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 6: Tvar číslice 5.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-7.png" class="image-314027" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 7: Tvar číslice 6.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-8.png" class="image-314028" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 8: Tvar číslice 7.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-9.png" class="image-314029" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 9: Tvar číslice 8.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-10.png" class="image-314030" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 10: Tvar číslice 9.</i></p>
+
+<div class="rs-box">Mimochodem: komu se podařilo poznat, z&nbsp;jakého fontu
+byly tvary všech testovacích číslic získány?</div>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Jednoduché zašumění trénovacích obrázků</h2>
+
+<p>Po natrénování neuronové sítě s&nbsp;využitím pouhých deseti vstupních
+obrázků by se mohlo stát, že by síť prakticky vůbec nebyla schopna rozeznat i
+nepatrně změněná vstupní data. Proto funkci pro vytvoření trénovacích obrázků
+vhodně pozměníme takovým způsobem, že se do obrázků zanese šum. Pro vytvoření
+šumu používám standardní funkci <strong>math.random</strong>, ovšem
+v&nbsp;případě potřeby samozřejmě můžete využít i funkci pro generování
+náhodných hodnot s&nbsp;normálním rozložením, která <a
+href="https://github.com/torch/torch7/blob/master/doc/maths.md#torch.randn">je
+součástí</a> samotné knihovny Torch a kterou jsme již použili pro trénink
+předchozích neuronových sítí. Povšimněte si dále, že i zašuměné obrázky mají
+přesně stanovenou hranici mezi pixely, které tvoří číslici a pixely tvořícími
+pozadí. Tuto část si samozřejmě můžete upravit, a to i takovým způsobem, aby
+tato hranice byla z&nbsp;obou stran překračována (ovšem takto obecně naučená
+síť nebude dávat jednoznačné výsledky &ndash; ostatně si to sami
+vyzkoušejte):</p>
+
+<pre>
+function <strong>generate_training_image</strong>(filename, digit, noise_amount)
+    if digit &lt; 0 or digit &gt; 9 then
+        return
+    end
+    codes = digits[digit+1]
+&nbsp;
+    local fout = io.open(filename, "w")
+    if not fout then
+        return
+    end
+&nbsp;
+    <i>-- hlavicka</i>
+    fout:write("P2\n8 8\n255\n")
+&nbsp;
+    for _, code in ipairs(codes) do
+        for i = 1,8 do
+            local bit = code % 2
+            fout:write(<strong>192*bit + math.random(0,noise_amount)</strong>)
+            fout:write(" ")
+            s = s .. bit
+            code = (code - bit)/2
+        end
+    end
+    fout:close()
+end
+</pre>
+
+<p>Nyní si již můžeme vygenerovat libovolnou sekvenci trénovacích obrázků.
+Pokud budete potřebovat víc obrázků, stačí změnit pole <strong>NOISE</strong>
+či celočíselnou konstantu <strong>REPEAT_COUNT</strong>:</p>
+
+<pre>
+for _, noise in ipairs(NOISE) do
+    for digit = 0, 9 do
+        for i = 1, REPEAT_COUNT do
+            local filename = string.format("%d_%d_%d.pgm", digit, noise, i)
+            generate_image(filename, digit, noise)
+        end
+    end
+end
+</pre>
+
+<p>Poznámka: v&nbsp;praxi se nebudeme zdržovat generováním souborů
+s&nbsp;obrázky, ale budeme tvořit přímo tenzory určené pro vstup do neuronové
+sítě. Výše zmíněná funkce <strong>generate_training_image</strong> ovšem může
+dobře posloužit pro vizualizaci vstupů sítě.</p>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Ukázka zašuměných obrázků</h2>
+
+<p>Opět se pro zajímavost podívejme na obrázky vykreslené funkcí
+<strong>generate_training_image</strong>, zde konkrétně pro číslici 2. Pokud
+vám připadne, že první obrázek obsahuje jen dvě barvy, zkuste si ho otevřít
+v&nbsp;grafickém editoru či v&nbsp;grafickém prohlížeči a následně si zobrazit
+jeho histogram (celkem se používá 29 různých odstínů šedi v&nbsp;64
+pixelech):</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-11.png" class="image-314031" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 11: Nepatrně zašuměná číslice 2.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-12.png" class="image-314032" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 12: Zvýšení míry šumu.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-13.png" class="image-314033" alt="&#160;" height="160" width="160" />
+<p><i>Obrázek 13: Další zvýšení míry šumu, tentokrát již jasně
+viditelné.</i></p>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Použití klasické neuronové sítě pro rozpoznání číslic v&nbsp;obrázku</h2>
+
+<p>Jak připravit trénovací data již víme, takže nám již zbývá
+&bdquo;maličkost&ldquo; &ndash; pokusit se vytvořit vhodnou neuronovou sít pro
+rozpoznávání číslic na obrázcích. Některé parametry sítě přitom předem
+vyplývají z&nbsp;podstaty řešeného problému, další parametry pouze
+odhadneme:</p>
+
+<ol>
+
+<li>Vstupů sítě bude 64, protože budeme zpracovávat bitmapy s&nbsp;8&times;8
+pixely.</li>
+
+<li>Výstupů sítě bude 10, přičemž každý výstup bude určovat, do jaké míry síť
+odhadla, že obrázek obsahuje danou číslici. Na výstup se můžeme dívat jako na
+vektor, kde v&nbsp;ideálním případě bude devět prvků nulových a jeden prvek
+bude obsahovat hodnotu 1. Index tohoto prvku pak přímo určuje hodnotu nalezené
+číslice (pokud indexujeme od nuly). V&nbsp;praxi se budou výstupy obsahovat i
+jiné hodnoty, ale vždy by mělo být možné najít jeden prvek s&nbsp;výrazně větší
+hodnotou.</li>
+
+<li>Pro jednoduchost bude síť obsahovat jen jednu skrytou vrstvu, v&nbsp;níž
+bude 100 neuronů (více, než na vstupní vrstvě).</li>
+
+</ol>
+
+<p>Parametry neuronové sítě:</p>
+
+<pre>
+INPUT_NEURONS = 64
+HIDDEN_NEURONS = 100
+OUTPUT_NEURONS = 10
+</pre>
+
+<p>Parametry pro učení neuronové sítě:</p>
+
+<pre>
+MAX_ITERATION = 200
+LEARNING_RATE = 0.01
+</pre>
+
+<p>V&nbsp;síti použijeme nelineární aktivační funkce <strong>Tanh</strong>,
+takže celá struktura sítě bude vypadat následovně:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+  (1): nn.Linear(64 -&gt; 100)
+  (2): nn.Tanh
+  (3): nn.Linear(100 -&gt; 10)
+  (4): nn.Tanh
+}
+</pre>
+
+<p>Funkce pro vytvoření trénovacích dat musí připravit sérii tenzorů
+představujících vstup do sítě. Použijeme přitom upravenou funkci
+<strong>generate_image_data</strong>, která již nebude vytvářet obrázek
+8&times;8 pixelů, ale tenzor s&nbsp;64 komponentami:</p>
+
+<pre>
+function <strong>generate_image_data</strong>(digit, noise_amount)
+    codes = digits[digit+1]
+&nbsp;
+    local index = 1
+    local result = torch.Tensor(8*8)
+&nbsp;
+    for _, code in ipairs(codes) do
+        for i = 1,8 do
+            local bit = code % 2
+            local value = 192*bit + math.random(0,noise_amount)
+            result[index] = value
+            index = index + 1
+            code = (code - bit)/2
+        end
+    end
+    return result
+end
+&nbsp;
+function <strong>prepare_training_data</strong>()
+    local training_data_size = #NOISE * REPEAT_COUNT * DIGITS
+    local training_data = {}
+    function training_data:size() return training_data_size end
+&nbsp;
+    local index = 1
+&nbsp;
+    for _, noise_amount in ipairs(NOISE) do
+        for digit = 0, 9 do
+            for i = 1, REPEAT_COUNT do
+                local input = generate_image_data(digit, noise_amount)
+                local output = generate_expected_output(digit)
+                training_data[index] = {input, output}
+                index = index + 1
+            end
+        end
+    end
+    return training_data
+end
+</pre>
+
+<p>Poznámka: zápis <strong>#NOISE</strong> v&nbsp;jazyce Lua znamená, že se
+vrátí počet prvků v&nbsp;poli <strong>NOISE</strong>.</p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Průběh tréninku sítě</h2>
+
+<p>Podívejme se nyní, jak vypadá trénink sítě. Chyba postupně klesá, a to
+zpočátku dosti výrazně. To může znamenat dvě věci: buď se nám podařilo
+navrhnout vhodnou strukturu sítě, nebo nejsou trénovací data dostatečně
+variabilní a síť proto nebude dostatečně adaptována pro reálná data (uvidíme
+dále):</p>
+
+<pre>
+# StochasticGradient: training
+# current error = 0.09230117269206
+# current error = 0.032254759333561
+# current error = 0.018699736965155
+# current error = 0.013066257387987
+# current error = 0.009324769702847
+# current error = 0.0085818671242583
+# current error = 0.0065817888003809
+# current error = 0.0051915683049868
+# current error = 0.0043908250531581
+# current error = 0.0037979578861573
+...
+...
+...
+# current error = 0.00011141314090753
+# current error = 0.00011082007280134
+# StochasticGradient: you have reached the maximum number of iterations
+# training error = 0.00011082007280134
+</pre>
+
+<p>Výsledná chyba je již dostatečně nízká, takže si můžeme naši sít
+verifikovat.</p>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Grafické zobrazení klasifikace verifikačních obrázků</h2>
+
+<p>Zatímco u předchozích neuronových sítí nám stačilo si vypsat odhadovanou
+hodnotu, porovnat ji s&nbsp;hodnotou očekávanou a následně vypočítat chybu, u
+dnešní sítě zvolíme jiný postup. Necháme si vykreslit graf, který pro různé
+vstupní obrázky zobrazí všech deset odhadů číslic. Přitom by jeden odhad měl
+výrazně převyšovat ostatní odhady. Aby se mohl vykreslit 2D graf, je nutné
+vytvořit 2D tenzor s&nbsp;výsledky. Tenzor bude mít rozměry
+počet_odhadů&times;počet_rozpoznávaných_číslic, kde počet_rozpoznávaných_číslic
+je roven deseti. Tenzor před vykreslením transponujeme metodou
+<strong>t()</strong>. Validace tedy může vypadat takto:</p>
+
+<pre>
+function <strong>validate_neural_network</strong>(network, digit, noise_amount)
+    local data_size = 100
+    local values = torch.Tensor(data_size, DIGITS)
+&nbsp;
+    for i = 1, data_size do
+        local input = generate_image_data(digit, noise_amount)
+        local output = network:forward(input)
+        values[i] = output
+        --print(output)
+    end
+&nbsp;
+    local filename = string.format("digit%d_noise%d.png", digit, noise_amount)
+    plot_graph(filename, values:t())
+end
+</pre>
+
+<p>Funkce, která vykreslí 2D graf s&nbsp;odhady sítě, je velmi jednoduchá,
+protože jí již předáváme 2D tenzor, jehož hodnoty se bez dalších úprav vynesou
+do grafu ve formě barev:</p>
+
+<pre>
+function <strong>plot_graph</strong>(filename, values)
+    gnuplot.pngfigure(filename)
+    gnuplot.imagesc(values, 'color')
+&nbsp;
+    gnuplot.plotflush()
+    gnuplot.close()
+end
+</pre>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Ukázka výsledků odhadu sítě</h2>
+
+<p>Podívejme se nyní na vytvořené grafy. Na horizontální osu jsou vynesena
+čísla jednotlivých měření (bylo jich celkem provedeno sto), na osu vertikální
+přímo hodnoty číslic. Podívejme se na první graf, na němž je konstantní plocha
+představující nuly a jediný žlutý pruh představující váhu 1. Neuronová sít pro
+nezašuměný obrázek s&nbsp;číslicí 1 vždy na 100% tuto číslici odhadla:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-14.png" class="image-314034" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 14: Vstupem je obrázek s&nbsp;číslicí 1. Míra šumu je nastavena na 0.</i></p>
+
+<p>Na druhém grafu je výsledek odhadu sítě pro nepatrně zašuměné obrázky,
+konkrétně pro obrázky, v&nbsp;nichž se hodnoty &bdquo;černých&ldquo; pixelů
+pohybují v&nbsp;rozsahu 0..15 a hodnoty pixelů &bdquo;bílých&ldquo;
+v&nbsp;rozsahu 192..207. Zde je patrné, že u minimálně dvou vstupních obrázků
+si síť nebyla na 100% jistá výsledkem:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-15.png" class="image-314035" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 15: Vstupem je obrázek s&nbsp;číslicí 1. Míra šumu je nastavena na 15.</i></p>
+
+<p>Čím větší je šum zanesený do obrázku, tím méně jistoty nalezneme u odhadu
+sítě.</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-16.png" class="image-314036" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 16: Vstupem je obrázek s&nbsp;číslicí 1. Míra šumu je nastavena na 30.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-17.png" class="image-314037" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 17: Vstupem je obrázek s&nbsp;číslicí 1. Míra šumu je nastavena na 45.</i></p>
+
+<p>I pro hodně zašuměné obrázky (přitom šum přesahuje míru použitou při
+tréninku sítě!) stále dostáváme použitelné výsledky, i když ne tak
+jednoznačné.</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-18.png" class="image-314038" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 18: Vstupem je obrázek s&nbsp;číslicí 1. Míra šumu je nastavena na 60.</i></p>
+
+<p>Podobné výsledky, ovšem pro vstupní obrázky s&nbsp;číslicí 3:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-19.png" class="image-314039" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 19: Vstupem je obrázek s&nbsp;číslicí 3. Míra šumu je nastavena na 0.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-20.png" class="image-314040" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 20: Vstupem je obrázek s&nbsp;číslicí 3. Míra šumu je nastavena na 15.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-21.png" class="image-314041" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 21: Vstupem je obrázek s&nbsp;číslicí 3. Míra šumu je nastavena na 30.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-22.png" class="image-314042" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 22: Vstupem je obrázek s&nbsp;číslicí 3. Míra šumu je nastavena na 45.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-23.png" class="image-314043" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 23: Vstupem je obrázek s&nbsp;číslicí 3. Míra šumu je nastavena na 60.</i></p>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Vliv postupného zvyšování šumu</h2>
+
+<p>Zajímavé bude sledovat, jak se bude odhad sítě zhoršovat s&nbsp;rostoucím
+šumem. Proto si vytvoříme novou funkci
+<strong>validate_neural_network_variable_noise</strong>, v&nbsp;níž vykreslíme
+podobné grafy pro verifikační data, ovšem nyní se bude s&nbsp;každým měřením
+zvětšovat míra šumu až na hodnotu 64 (tj.&nbsp;pixely &bdquo;bílé&ldquo; a
+&bdquo;černé&ldquo; ve skutečnosti mohou nabývat jedné z&nbsp;64 hodnot).
+Funkce vypadá takto:</p>
+
+<pre>
+function <strong>validate_neural_network_variable_noise</strong>(network, digit)
+    local data_size = 64
+    local values = torch.Tensor(data_size, DIGITS)
+&nbsp;
+    for noise_amount = 0, data_size-1 do
+        local input = generate_image_data(digit, noise_amount)
+        local output = network:forward(input)
+        values[noise_amount+1] = output
+    end
+&nbsp;
+    local filename = string.format("digit%d_variable_noise.png", digit)
+    plot_graph(filename, values:t())
+end
+</pre>
+
+<p>Výsledkem je pouhých deset grafů pro deset číslic, takže si je uvedeme
+všechny. Zajímavé je zjištění, že při zvětšujícím se zašumění se jistota sítě
+v&nbsp;odhadu číslice liší podle toho, jaký tvar je rozpoznáván:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-24.png" class="image-314044" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 24: Vstupem jsou obrázky s&nbsp;číslicí 0. Nejpodobnější jsou
+číslice 6 a 8.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-25.png" class="image-314045" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 25: Vstupem jsou obrázky s&nbsp;číslicí 1.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-26.png" class="image-314046" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 26: Vstupem jsou obrázky s&nbsp;číslicí 2. Nejpodobnější je
+číslice 3.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-27.png" class="image-314047" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 27: Vstupem jsou obrázky s&nbsp;číslicí 3. Nejpodobnější je
+osmička.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-28.png" class="image-314048" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 28: Vstupem jsou obrázky s&nbsp;číslicí 4.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-29.png" class="image-314049" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 29: Vstupem jsou obrázky s&nbsp;číslicí 5.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-30.png" class="image-314050" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 30: Vstupem jsou obrázky s&nbsp;číslicí 6.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-31.png" class="image-314051" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 31: Vstupem jsou obrázky s&nbsp;číslicí 7.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-32.png" class="image-314052" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 32: Vstupem jsou obrázky s&nbsp;číslicí 8.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-33.png" class="image-314053" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 33: Vstupem jsou obrázky s&nbsp;číslicí 9.</i></p>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Úplný zdrojový kód prvního příkladu</h2>
+
+<p>Pod tímto odstavcem je vypsán úplný zdrojový kód dnešního prvního
+demonstračního příkladu s&nbsp;jednoduchou sítí se třemi vrstvami, která
+rozpoznává číslice napsané předem známým fontem, přičemž obrázky
+s&nbsp;číslicemi mohou být do určité míry zašuměny. Zdrojový kód najdete i na
+adrese <a
+href="https://github.com/tisnik/torch-examples/blob/master/nn/bitmap_nn/01_noisy_images.lua">https://github.com/tisnik/torch-examples/blob/master/nn/bitmap_nn/01_noisy_images.lua</a>:</p>
+
+<pre>
+require("nn")
+require("gnuplot")
+&nbsp;
+<i>-- parametry neuronove site</i>
+INPUT_NEURONS = 64
+HIDDEN_NEURONS = 100
+OUTPUT_NEURONS = 10
+&nbsp;
+<i>-- parametry pro uceni neuronove site</i>
+MAX_ITERATION = 200
+LEARNING_RATE = 0.01
+&nbsp;
+NOISE = {0, 8, 16}--, 32}
+REPEAT_COUNT = 5
+&nbsp;
+DIGITS = 10
+&nbsp;
+digits = {
+    {0x00, 0x3C, 0x66, 0x76, 0x6E, 0x66, 0x3C, 0x00 },
+    {0x00, 0x18, 0x1C, 0x18, 0x18, 0x18, 0x7E, 0x00 },
+    {0x00, 0x3C, 0x66, 0x30, 0x18, 0x0C, 0x7E, 0x00 },
+    {0x00, 0x7E, 0x30, 0x18, 0x30, 0x66, 0x3C, 0x00 },
+    {0x00, 0x30, 0x38, 0x3C, 0x36, 0x7E, 0x30, 0x00 },
+    {0x00, 0x7E, 0x06, 0x3E, 0x60, 0x66, 0x3C, 0x00 },
+    {0x00, 0x3C, 0x06, 0x3E, 0x66, 0x66, 0x3C, 0x00 },
+    {0x00, 0x7E, 0x60, 0x30, 0x18, 0x0C, 0x0C, 0x00 },
+    {0x00, 0x3C, 0x66, 0x3C, 0x66, 0x66, 0x3C, 0x00 },
+    {0x00, 0x3C, 0x66, 0x7C, 0x60, 0x30, 0x1C, 0x00 },
+}
+&nbsp;
+function <strong>generate_image_data</strong>(digit, noise_amount)
+    codes = digits[digit+1]
+&nbsp;
+    local index = 1
+    local result = torch.Tensor(8*8)
+&nbsp;
+    for _, code in ipairs(codes) do
+        for i = 1,8 do
+            local bit = code % 2
+            local value = 192*bit + math.random(0,noise_amount)
+            result[index] = value
+            index = index + 1
+            code = (code - bit)/2
+        end
+    end
+    return result
+end
+&nbsp;
+&nbsp;
+function <strong>generate_expected_output</strong>(digit)
+    local result = torch.zeros(DIGITS)
+    result[digit+1] = 1
+    return result
+end
+&nbsp;
+&nbsp;
+function <strong>prepare_training_data</strong>()
+    local training_data_size = #NOISE * REPEAT_COUNT * DIGITS
+    local training_data = {}
+    function training_data:size() return training_data_size end
+&nbsp;
+    local index = 1
+&nbsp;
+    for _, noise_amount in ipairs(NOISE) do
+        for digit = 0, 9 do
+            for i = 1, REPEAT_COUNT do
+                local input = generate_image_data(digit, noise_amount)
+                local output = generate_expected_output(digit)
+                training_data[index] = {input, output}
+                index = index + 1
+            end
+        end
+    end
+    return training_data
+end
+&nbsp;
+&nbsp;
+function <strong>construct_neural_network</strong>(input_neurons, hidden_neurons, output_neurons)
+    local network = nn.Sequential()
+&nbsp;
+    network:add(nn.Linear(input_neurons, hidden_neurons))
+    network:add(nn.Tanh())
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+    <i>-- pridana nelinearni funkce</i>
+    network:add(nn.Tanh())
+&nbsp;
+    return network
+end
+&nbsp;
+&nbsp;
+function <strong>train_neural_network</strong>(network, training_data, learning_rate, max_iteration)
+    local criterion = nn.MSECriterion()
+    local trainer = nn.StochasticGradient(network, criterion)
+    trainer.learningRate = learning_rate
+    trainer.maxIteration = max_iteration
+    trainer:train(training_data)
+end
+&nbsp;
+&nbsp;
+function <strong>plot_graph</strong>(filename, values)
+    gnuplot.pngfigure(filename)
+    gnuplot.imagesc(values, 'color')
+&nbsp;
+    gnuplot.plotflush()
+    gnuplot.close()
+end
+&nbsp;
+&nbsp;
+function <strong>validate_neural_network</strong>(network, digit, noise_amount)
+    local data_size = 100
+    local values = torch.Tensor(data_size, DIGITS)
+&nbsp;
+    for i = 1, data_size do
+        local input = generate_image_data(digit, noise_amount)
+        local output = network:forward(input)
+        values[i] = output
+        <i>--print(output)</i>
+    end
+    local filename = string.format("digit%d_noise%d.png", digit, noise_amount)
+    plot_graph(filename, values:t())
+end
+&nbsp;
+&nbsp;
+function <strong>validate_neural_network_variable_noise</strong>(network, digit)
+    local data_size = 64
+    local values = torch.Tensor(data_size, DIGITS)
+&nbsp;
+    for noise_amount = 0, data_size-1 do
+        local input = generate_image_data(digit, noise_amount)
+        local output = network:forward(input)
+        values[noise_amount+1] = output
+    end
+    local filename = string.format("digit%d_variable_noise.png", digit)
+    plot_graph(filename, values:t())
+end
+&nbsp;
+&nbsp;
+network = construct_neural_network(INPUT_NEURONS, HIDDEN_NEURONS, OUTPUT_NEURONS)
+print(network)
+&nbsp;
+training_data = prepare_training_data()
+&nbsp;
+train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+&nbsp;
+for digit = 0, 9 do
+    validate_neural_network_variable_noise(network, digit)
+end
+&nbsp;
+for noise = 0, 60, 15 do
+    validate_neural_network(network, 1, noise)
+    validate_neural_network(network, 3, noise)
+    validate_neural_network(network, 8, noise)
+end
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Kde je tedy problém?</h2>
+
+<p>Výsledky uvedené v&nbsp;kapitole <a href="#k09">9</a> a <a
+href="#k10">10</a> zdánlivě naznačují, že je naše neuronová síť velmi úspěšná
+v&nbsp;rozpoznávání obrázků číslic. Ve skutečnosti je však nutné přiznat, že to
+vlastně vůbec není pravda, a to minimálně ze dvou důvodů:</p>
+
+<ol>
+
+<li>Síť dokáže rozpoznat pouze jeden font, což obecně bude vadit, například ve
+chvíli, kdy namísto námi připravených trénovacích dat použijeme například ručně
+psané číslice z&nbsp;již zmíněné databáze MNIST. A raději ji vůbec nepouštějte
+na obrázky získané ze systémů CAPTCHA :-)</li>
+
+<li>Síť je možné velmi snadno zmást i při použití stále stejného fontu.
+Postačuje pouze obraz číslice posunout o jeden jediný pixel (jakýmkoli
+směrem)!</li>
+
+</ol>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Verifikace sítě s&nbsp;posunutými obrázky</h2>
+
+<p>Ukažme si, zda platí druhé tvrzení. Nepatrně upravíme funkci pro generování
+trénovacích a/nebo verifikačních dat tak, aby bylo možné obrázek vertikálně
+posunout, a to jak nahoru, tak i dolů o zadaný offset (samozřejmě si můžete
+provést úpravu i pro posun doprava a doleva):</p>
+
+<pre>
+function <strong>generate_image_data</strong>(digit, noise_amount, offset_y)
+    local max_index = 8*8
+    codes = digits[digit+1]
+&nbsp;
+    local index = 1 - 8*offset_y
+    local result = torch.zeros(max_index)
+&nbsp;
+    for _, code in ipairs(codes) do
+        for i = 1,8 do
+            local bit = code % 2
+            local value = 192*bit + math.random(0,noise_amount)
+            if index &gt;= 1 and index &lt;= max_index then
+                result[index] = value
+            end
+            index = index + 1
+            code = (code - bit)/2
+        end
+    end
+    return result
+end
+</pre>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Ukázka výsledků odhadu sítě pro posunuté obrázky</h2>
+
+<p>Výsledky si opět zobrazíme formou 2D grafu. Nejdříve pro odhady sítě pro
+obrázky s&nbsp;číslicí 1, které jsou postupně stále více zašuměny. Vidíme, že
+výsledky jsou stále dobré, v&nbsp;souladu s&nbsp;očekáváním:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-34.png" class="image-314054" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 34: Vstupem jsou obrázky číslice 1. Šum postupně roste od 0 do 64.</i></p>
+
+<p>Posun obrazu číslice o jeden řádek ovšem síť dokonale zmate a výsledky
+přestanou být použitelné:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-35.png" class="image-314055" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 35: Vstupem jsou obrázky číslice 1 posunuté o jeden obrazový
+řádek. Šum postupně roste od 0 do 64.</i></p>
+
+<p>Totéž platí i pro posun o řádek, ovšem druhým směrem:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-36.png" class="image-314056" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 36: Vstupem jsou obrázky číslice 1 posunuté o jeden obrazový
+řádek. Šum postupně roste od 0 do 64.</i></p>
+
+<p>Tentýž odhad můžeme provést pro obrázky s&nbsp;číslicí 3:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-37.png" class="image-314057" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 37: Vstupem jsou obrázky číslice 3. Šum postupně roste od 0 do 64.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-38.png" class="image-314058" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 38: Vstupem jsou obrázky číslice 3 posunuté o jeden obrazový
+řádek. Šum postupně roste od 0 do 64.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-39.png" class="image-314059" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 39: Vstupem jsou obrázky číslice 3 posunuté o jeden obrazový
+řádek. Šum postupně roste od 0 do 64.</i></p>
+
+<p>Poslední série odhadů, tentokrát při číslici osm:</p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-40.png" class="image-314060" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 40: Vstupem jsou obrázky číslice 8. Šum postupně roste od 0 do 64.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-41.png" class="image-314061" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 41: Vstupem jsou obrázky číslice 8 posunuté o jeden obrazový
+řádek. Šum postupně roste od 0 do 64.</i></p>
+
+<img src="https://i.iinfo.cz/images/419/torch9-42.png" class="image-314062" alt="&#160;" height="480" width="640" />
+<p><i>Obrázek 42: Vstupem jsou obrázky číslice 8 posunuté o jeden obrazový
+řádek. Šum postupně roste od 0 do 64.</i></p>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Zdrojový kód druhého příkladu</h2>
+
+<p>Opět se podívejme na úplný zdrojový kód dnešního druhého a současně i
+posledního demonstračního příkladu, v&nbsp;němž se (neúspěšně) snažíme
+rozpoznat číslice, které jsou v&nbsp;obrázku posunuty o jeden řádek nahoru a
+dolů:</p>
+
+<pre>
+require("nn")
+require("gnuplot")
+&nbsp;
+<i>-- parametry neuronove site</i>
+INPUT_NEURONS = 64
+HIDDEN_NEURONS = 100
+OUTPUT_NEURONS = 10
+&nbsp;
+<i>-- parametry pro uceni neuronove site</i>
+MAX_ITERATION = 200
+LEARNING_RATE = 0.01
+&nbsp;
+NOISE = {0, 8, 16}--, 32}
+REPEAT_COUNT = 5
+&nbsp;
+DIGITS = 10
+&nbsp;
+digits = {
+    {0x00, 0x3C, 0x66, 0x76, 0x6E, 0x66, 0x3C, 0x00 },
+    {0x00, 0x18, 0x1C, 0x18, 0x18, 0x18, 0x7E, 0x00 },
+    {0x00, 0x3C, 0x66, 0x30, 0x18, 0x0C, 0x7E, 0x00 },
+    {0x00, 0x7E, 0x30, 0x18, 0x30, 0x66, 0x3C, 0x00 },
+    {0x00, 0x30, 0x38, 0x3C, 0x36, 0x7E, 0x30, 0x00 },
+    {0x00, 0x7E, 0x06, 0x3E, 0x60, 0x66, 0x3C, 0x00 },
+    {0x00, 0x3C, 0x06, 0x3E, 0x66, 0x66, 0x3C, 0x00 },
+    {0x00, 0x7E, 0x60, 0x30, 0x18, 0x0C, 0x0C, 0x00 },
+    {0x00, 0x3C, 0x66, 0x3C, 0x66, 0x66, 0x3C, 0x00 },
+    {0x00, 0x3C, 0x66, 0x7C, 0x60, 0x30, 0x1C, 0x00 },
+}
+&nbsp;
+function <strong>generate_image_data</strong>(digit, noise_amount, offset_y)
+    local max_index = 8*8
+    codes = digits[digit+1]
+&nbsp;
+    local index = 1 - 8*offset_y
+    local result = torch.zeros(max_index)
+&nbsp;
+    for _, code in ipairs(codes) do
+        for i = 1,8 do
+            local bit = code % 2
+            local value = 192*bit + math.random(0,noise_amount)
+            if index &gt;= 1 and index &lt;= max_index then
+                result[index] = value
+            end
+            index = index + 1
+            code = (code - bit)/2
+        end
+    end
+    return result
+end
+&nbsp;
+&nbsp;
+function <strong>generate_expected_output</strong>(digit)
+    local result = torch.zeros(DIGITS)
+    result[digit+1] = 1
+    return result
+end
+&nbsp;
+&nbsp;
+function <strong>prepare_training_data</strong>()
+    local training_data_size = #NOISE * REPEAT_COUNT * DIGITS
+    local training_data = {}
+    function training_data:size() return training_data_size end
+&nbsp;
+    local index = 1
+&nbsp;
+    for _, noise_amount in ipairs(NOISE) do
+        for digit = 0, 9 do
+            for i = 1, REPEAT_COUNT do
+                local input = generate_image_data(digit, noise_amount, 0)
+                local output = generate_expected_output(digit)
+                training_data[index] = {input, output}
+                index = index + 1
+            end
+        end
+    end
+    return training_data
+end
+&nbsp;
+&nbsp;
+function <strong>construct_neural_network</strong>(input_neurons, hidden_neurons, output_neurons)
+    local network = nn.Sequential()
+&nbsp;
+    network:add(nn.Linear(input_neurons, hidden_neurons))
+    network:add(nn.Tanh())
+    network:add(nn.Linear(hidden_neurons, output_neurons))
+    <i>-- pridana nelinearni funkce</i>
+    network:add(nn.Tanh())
+&nbsp;
+    return network
+end
+&nbsp;
+&nbsp;
+function <strong>train_neural_network</strong>(network, training_data, learning_rate, max_iteration)
+    local criterion = nn.MSECriterion()
+    local trainer = nn.StochasticGradient(network, criterion)
+    trainer.learningRate = learning_rate
+    trainer.maxIteration = max_iteration
+    trainer:train(training_data)
+end
+&nbsp;
+&nbsp;
+function <strong>plot_graph</strong>(filename, values)
+    gnuplot.pngfigure(filename)
+    gnuplot.imagesc(values, 'color')
+&nbsp;
+    gnuplot.plotflush()
+    gnuplot.close()
+end
+&nbsp;
+&nbsp;
+function <strong>validate_neural_network</strong>(network, digit, offset)
+    local values = torch.Tensor(64, DIGITS)
+&nbsp;
+    for noise_amount = 0, 63 do
+        local input = generate_image_data(digit, noise_amount, offset)
+        local output = network:forward(input)
+        values[noise_amount+1] = output
+    end
+    local filename = string.format("digit%d_offset%d.png", digit, offset)
+    plot_graph(filename, values:t())
+end
+&nbsp;
+&nbsp;
+network = construct_neural_network(INPUT_NEURONS, HIDDEN_NEURONS, OUTPUT_NEURONS)
+print(network)
+&nbsp;
+training_data = prepare_training_data()
+&nbsp;
+train_neural_network(network, training_data, LEARNING_RATE, MAX_ITERATION)
+&nbsp;
+for offset = -1, 1 do
+    validate_neural_network(network, 1, offset)
+    validate_neural_network(network, 3, offset)
+    validate_neural_network(network, 8, offset)
+end
+</pre>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Vylepšení architektury neuronových sítí aneb konvoluční sítě</h2>
+
+<p>Jak je tedy možné zlepšit odhad sítě i v&nbsp;případě, že očekáváme, že
+obrázky budou posunuty, nepatrně otočeny, zkoseny atd.? Máme k&nbsp;dispozici
+více řešení. Buď udělat síť mnohem víc robustní, což znamená <i>výrazně</i>
+zvětšit počet skrytých vrstev, zvětšit počet neuronů v&nbsp;těchto vrstvách a o
+několik řádů zvětšit i množství trénovacích dat (různé formy offsetu, posun jen
+některých pixelů atd.). To je sice skutečně možné zařídit (ostatně zaplatíme za
+to &bdquo;jen&ldquo; strojovým časem), ovšem stále zde narážíme na principiální
+omezení klasických vrstvených neuronových sítí &ndash; jednotlivé neurony se
+učí izolovaně od ostatních neuronů, zatímco na vstupu máme
+&bdquo;plovoucí&ldquo; obrázek. Bylo by tedy výhodnější se zaměřit na vylepšení
+samotné architektury neuronové sítě specializované právě na to, že na vstupu
+bude mít bitmapy a tudíž by sousední neurony měly nějakým způsobem sdílet své
+váhy na vstupech. Taková architektura již ve skutečnosti byla dávno vymyšlena a
+jmenuje se <i>konvoluční neuronová sít</i>.</p>
+
+<p>Ovšem stále musíme mít na paměti, že i konvoluční neuronové sítě jsou
+založené na klasických dopředných sítích, které navíc bývají
+tzv.&nbsp;hluboké.</p>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Vrstvy v&nbsp;konvolučních sítích</h2>
+
+<p>V&nbsp;konvolučních sítích se používají vrstvy se speciálním významem i
+chováním. Jedná se především o takzvané <i>konvoluční vrstvy</i>, které jsou
+napojeny přímo na vstupní vrstvu popř.&nbsp;na <i>subsamplingové vrstvy</i>.
+Konvoluční vrstvy se skládají z&nbsp;obecně libovolného množství příznakových
+map, podle toho, jaké objekty nebo vlastnosti vlastně v&nbsp;obrázku
+rozpoznáváme. Zpracovávaná bitmapa se zde rozděluje na podoblasti, které se
+vzájemně překrývají. Neurony přitom mohou sdílet své váhy přiřazené vstupům.
+Jak přesně to funguje si řekneme příště. Mezi jednotlivé konvoluční vrstvy se
+vkládají subsamplingové vrstvy, které jsou z&nbsp;výpočetního hlediska
+jednodušší, protože neurony zde obsahují jen dvě váhy (součet vstupů+práh).
+Tyto vrstvy získaly svoje jméno podle toho, že umožňují provádět podvzorkování
+založené většinou na velmi jednoduchých funkcích aplikovaných na okolí každého
+pixelu (maximální hodnota, střední hodnota...).</p>
+
+<p>Typicky se vrstvy střídají takto:</p>
+
+<ol>
+<li>Vstupní vrstva</li>
+<li>Konvoluční vrstva #1</li>
+<li>Subsamplingová vrstva #1</li>
+<li>Konvoluční vrstva #2</li>
+<li>Subsamplingová vrstva #2</li>
+<li>...</li>
+<li>...</li>
+<li>Klasická skrytá vrstva</li>
+<li>Výstupní vrstva</li>
+</ol>
+
+<p>Existují ovšem i další možnosti, opět se o nich zmíníme příště.</p>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Všechny demonstrační příklady, které jsme si popsali v&nbsp;předchozích
+kapitolách najdete v&nbsp;GIT repositáři dostupném na adrese <a
+href="https://github.com/tisnik/torch-examples.git">https://github.com/tisnik/torch-examples.git</a>.
+Následují odkazy na zdrojové kódy jednotlivých příkladů:</p>
+
+<table>
+<tr><th>Příklad</th><th>Adresa</th></tr>
+<tr><td>make_training_images.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/bitmap_nn/make_training_images.lua">https://github.com/tisnik/torch-examples/blob/master/nn/bitmap_nn/make_training_images.lua</a></td></tr>
+<tr><td>01_noisy_images.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/bitmap_nn/01_noisy_images.lua">https://github.com/tisnik/torch-examples/blob/master/nn/bitmap_nn/01_noisy_images.lua</a></td></tr>
+<tr><td>02_offset_images.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/bitmap_nn/02_offset_images.lua">https://github.com/tisnik/torch-examples/blob/master/nn/bitmap_nn/02_offset_images.lua</a></td></tr>
+</table>
+
+<p>Poznámka: první skript je možné spouštět přímo z&nbsp;interpretru jazyka
+Lua, není tedy nutné používat framework Torch.</p>
+
+
+
+<p><a name="k19"></a></p>
+<h2 id="k19">19. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>THE MNIST DATABASE of handwritten digits<br />
+<a href="http://yann.lecun.com/exdb/mnist/">http://yann.lecun.com/exdb/mnist/</a>
+</li>
+
+<li>MNIST database (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MNIST_database">https://en.wikipedia.org/wiki/MNIST_database</a>
+</li>
+
+<li>MNIST For ML Beginners<br />
+<a href="https://www.tensorflow.org/get_started/mnist/beginners">https://www.tensorflow.org/get_started/mnist/beginners</a>
+</li>
+
+<li>Stránka projektu Torch<br />
+<a href="http://torch.ch/">http://torch.ch/</a>
+</li>
+
+<li>Torch: Serialization<br />
+<a href="https://github.com/torch/torch7/blob/master/doc/serialization.md">https://github.com/torch/torch7/blob/master/doc/serialization.md</a>
+</li>
+
+<li>Torch: modul image<br />
+<a href="https://github.com/torch/image/blob/master/README.md">https://github.com/torch/image/blob/master/README.md</a>
+</li>
+
+<li>Data pro neuronové sítě<br />
+<a href="http://archive.ics.uci.edu/ml/index.php">http://archive.ics.uci.edu/ml/index.php</a>
+</li>
+
+<li>LED Display Domain Data Set<br />
+<a href="http://archive.ics.uci.edu/ml/datasets/LED+Display+Domain">http://archive.ics.uci.edu/ml/datasets/LED+Display+Domain</a>
+</li>
+
+<li>Torch na GitHubu (několik repositářů)<br />
+<a href="https://github.com/torch">https://github.com/torch</a>
+</li>
+
+<li>Torch (machine learning), Wikipedia<br />
+<a href="https://en.wikipedia.org/wiki/Torch_%28machine_learning%29">https://en.wikipedia.org/wiki/Torch_%28machine_learning%29</a>
+</li>
+
+<li>Torch Package Reference Manual<br />
+<a href="https://github.com/torch/torch7/blob/master/README.md">https://github.com/torch/torch7/blob/master/README.md</a>
+</li>
+
+<li>Torch Cheatsheet<br />
+<a href="https://github.com/torch/torch7/wiki/Cheatsheet">https://github.com/torch/torch7/wiki/Cheatsheet</a>
+</li>
+
+<li>Neural network containres (Torch)<br />
+<a href="https://github.com/torch/nn/blob/master/doc/containers.md">https://github.com/torch/nn/blob/master/doc/containers.md</a>
+</li>
+
+<li>Simple layers<br />
+<a href="https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear">https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear</a>
+</li>
+
+<li>Transfer Function Layers<br />
+<a href="https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok">https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok</a>
+</li>
+
+<li>Feedforward neural network<br />
+<a href="https://en.wikipedia.org/wiki/Feedforward_neural_network">https://en.wikipedia.org/wiki/Feedforward_neural_network</a>
+</li>
+
+<li>Biologické algoritmy (4) - Neuronové sítě<br />
+<a href="https://www.root.cz/clanky/biologicke-algoritmy-4-neuronove-site/">https://www.root.cz/clanky/biologicke-algoritmy-4-neuronove-site/</a>
+</li>
+
+<li>Biologické algoritmy (5) - Neuronové sítě<br />
+<a href="https://www.root.cz/clanky/biologicke-algoritmy-5-neuronove-site/">https://www.root.cz/clanky/biologicke-algoritmy-5-neuronove-site/</a>
+</li>
+
+<li>Umělá neuronová síť (Wikipedia)<br />
+<a href="https://cs.wikipedia.org/wiki/Um%C4%9Bl%C3%A1_neuronov%C3%A1_s%C3%AD%C5%A5">https://cs.wikipedia.org/wiki/Um%C4%9Bl%C3%A1_neuronov%C3%A1_s%C3%AD%C5%A5</a>
+</li>
+
+<li>Učení s učitelem (Wikipedia)<br />
+<a href="https://cs.wikipedia.org/wiki/U%C4%8Den%C3%AD_s_u%C4%8Ditelem">https://cs.wikipedia.org/wiki/U%C4%8Den%C3%AD_s_u%C4%8Ditelem</a>
+</li>
+
+<li>Plotting with Torch7<br />
+<a href="http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/">http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/</a>
+</li>
+
+<li>Plotting Package Manual with Gnuplot<br />
+<a href="https://github.com/torch/gnuplot/blob/master/README.md">https://github.com/torch/gnuplot/blob/master/README.md</a>
+</li>
+
+<li>An Introduction to Tensors<br />
+<a href="https://math.stackexchange.com/questions/10282/an-introduction-to-tensors">https://math.stackexchange.com/questions/10282/an-introduction-to-tensors</a>
+</li>
+
+<li>Gaussian filter<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_filter">https://en.wikipedia.org/wiki/Gaussian_filter</a>
+</li>
+
+<li>Gaussian function<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_function">https://en.wikipedia.org/wiki/Gaussian_function</a>
+</li>
+
+<li>Laplacian/Laplacian of Gaussian<br />
+<a href="http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm">http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm</a>
+</li>
+
+<li>Odstranění šumu<br />
+<a href="https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu">https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu</a>
+</li>
+
+<li>Binary image<br />
+<a href="https://en.wikipedia.org/wiki/Binary_image">https://en.wikipedia.org/wiki/Binary_image</a>
+</li>
+
+<li>Erosion (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Erosion_%28morphology%29">https://en.wikipedia.org/wiki/Erosion_%28morphology%29</a>
+</li>
+
+<li>Dilation (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Dilation_%28morphology%29">https://en.wikipedia.org/wiki/Dilation_%28morphology%29</a>
+</li>
+
+<li>Mathematical morphology<br />
+<a href="https://en.wikipedia.org/wiki/Mathematical_morphology">https://en.wikipedia.org/wiki/Mathematical_morphology</a>
+</li>
+
+<li>Cvičení 10 - Morfologické operace<br />
+<a href="http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php">http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php</a>
+</li>
+
+<li>Differences between a matrix and a tensor<br />
+<a href="https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor">https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor</a>
+</li>
+
+<li>Qualitatively, what is the difference between a matrix and a tensor?<br />
+<a href="https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?">https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?</a>
+</li>
+
+<li>BLAS (Basic Linear Algebra Subprograms)<br />
+<a href="http://www.netlib.org/blas/">http://www.netlib.org/blas/</a>
+</li>
+
+<li>Basic Linear Algebra Subprograms (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms">https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms</a>
+</li>
+
+<li>Comparison of deep learning software<br />
+<a href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software</a>
+</li>
+
+<li>TensorFlow<br />
+<a href="https://www.tensorflow.org/">https://www.tensorflow.org/</a>
+</li>
+
+<li>Caffe2 (A New Lightweight, Modular, and Scalable Deep Learning Framework)<br />
+<a href="https://caffe2.ai/">https://caffe2.ai/</a>
+</li>
+
+<li>PyTorch<br />
+<a href="http://pytorch.org/">http://pytorch.org/</a>
+</li>
+
+<li>Seriál o programovacím jazyku Lua<br />
+<a href="http://www.root.cz/serialy/programovaci-jazyk-lua/">http://www.root.cz/serialy/programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (2)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (3)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (4)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (5 - tabulky a pole)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (6 - překlad programových smyček do mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (7 - dokončení popisu mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (8 - základní vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (9 - další vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (10 - JIT překlad do nativního kódu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (11 - JIT překlad do nativního kódu procesorů s architekturami x86 a ARM)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (12 - překlad operací s reálnými čísly)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/</a>
+</li>
+
+<li>Lua Profiler (GitHub)<br />
+<a href="https://github.com/luaforge/luaprofiler">https://github.com/luaforge/luaprofiler</a>
+</li>
+
+<li>Lua Profiler (LuaForge)<br />
+<a href="http://luaforge.net/projects/luaprofiler/">http://luaforge.net/projects/luaprofiler/</a>
+</li>
+
+<li>ctrace<br />
+<a href="http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</li>
+
+<li>The Lua VM, on the Web<br />
+<a href="https://kripken.github.io/lua.vm.js/lua.vm.js.html">https://kripken.github.io/lua.vm.js/lua.vm.js.html</a>
+</li>
+
+<li>Lua.vm.js REPL<br />
+<a href="https://kripken.github.io/lua.vm.js/repl.html">https://kripken.github.io/lua.vm.js/repl.html</a>
+</li>
+
+<li>lua2js<br />
+<a href="https://www.npmjs.com/package/lua2js">https://www.npmjs.com/package/lua2js</a>
+</li>
+
+<li>lua2js na GitHubu<br />
+<a href="https://github.com/basicer/lua2js-dist">https://github.com/basicer/lua2js-dist</a>
+</li>
+
+<li>Lua (programming language)<br />
+<a href="http://en.wikipedia.org/wiki/Lua_(programming_language)">http://en.wikipedia.org/wiki/Lua_(programming_language)</a>
+</li>
+
+<li>LuaJIT 2.0 SSA IR
+<a href="http://wiki.luajit.org/SSA-IR-2.0">http://wiki.luajit.org/SSA-IR-2.0</a>
+</li>
+
+<li>The LuaJIT Project<br />
+<a href="http://luajit.org/index.html">http://luajit.org/index.html</a>
+</li>
+
+<li>LuaJIT FAQ<br />
+<a href="http://luajit.org/faq.html">http://luajit.org/faq.html</a>
+</li>
+
+<li>LuaJIT Performance Comparison<br />
+<a href="http://luajit.org/performance.html">http://luajit.org/performance.html</a>
+</li>
+
+<li>LuaJIT 2.0 intellectual property disclosure and research opportunities<br />
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908">http://article.gmane.org/gmane.comp.lang.lua.general/58908</a>
+</li>
+
+<li>LuaJIT Wiki<br />
+<a href="http://wiki.luajit.org/Home">http://wiki.luajit.org/Home</a>
+</li>
+
+<li>LuaJIT 2.0 Bytecode Instructions<br />
+<a href="http://wiki.luajit.org/Bytecode-2.0">http://wiki.luajit.org/Bytecode-2.0</a>
+</li>
+
+<li>Programming in Lua (first edition)<br />
+<a href="http://www.lua.org/pil/contents.html">http://www.lua.org/pil/contents.html</a>
+</li>
+
+<li>Lua 5.2 sources<br />
+<a href="http://www.lua.org/source/5.2/">http://www.lua.org/source/5.2/</a>
+</li>
+
+<li>REPL<br />
+<a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop</a>
+</li>
+
+<li>The LLVM Compiler Infrastructure<br />
+<a href="http://llvm.org/ProjectsWithLLVM/">http://llvm.org/ProjectsWithLLVM/</a>
+</li>
+
+<li>clang: a C language family frontend for LLVM<br />
+<a href="http://clang.llvm.org/">http://clang.llvm.org/</a>
+</li>
+
+<li>LLVM Backend ("Fastcomp")<br />
+<a href="http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend">http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend</a>
+</li>
+
+<li>Lambda the Ultimate: Coroutines in Lua,<br />
+<a href="http://lambda-the-ultimate.org/node/438">http://lambda-the-ultimate.org/node/438</a>
+</li>
+
+<li>Coroutines Tutorial,<br />
+<a href="http://lua-users.org/wiki/CoroutinesTutorial">http://lua-users.org/wiki/CoroutinesTutorial</a>
+</li>
+
+<li>Lua Coroutines Versus Python Generators,<br />
+<a href="http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators">http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2017</small></p>
+</body>
+</html>
+

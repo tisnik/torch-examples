@@ -1,0 +1,1857 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Framework Torch: konfigurace struktury neuronových sítí, rozpoznávání programovacího jazyka</title>
+<meta name="Author" content="Pavel Tisnovsky" />
+<meta name="Generator" content="vim" />
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style type="text/css">
+         body {color:#000000; background:#ffffff;}
+         h1  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#c00000; text-align:center; padding-left:1em}
+         h2  {font-family: arial, helvetica, sans-serif; color:#ffffff; background-color:#0000c0; padding-left:1em; text-align:left}
+         h3  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#c0c0c0; padding-left:1em; text-align:left}
+         h4  {font-family: arial, helvetica, sans-serif; color:#000000; background-color:#e0e0e0; padding-left:1em; text-align:left}
+         a   {font-family: arial, helvetica, sans-serif;}
+         li  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ol  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         ul  {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify; width:450px;}
+         p   {font-family: arial, helvetica, sans-serif; color:#000000; text-align:justify;}
+         pre {background:#e0e0e0}
+</style>
+</head>
+
+<body>
+
+<h1>Framework Torch: konfigurace struktury neuronových sítí, rozpoznávání programovacího jazyka</h1>
+
+<h3>Pavel Tišnovský</h3>
+
+<p></p>
+
+<h1>Úvodník</h1>
+
+<p>Čtrnáctá část seriálu o frameworku Torch je věnována problematice konfigurace struktury neuronových sítí. Ve druhé části článku se poté budeme zabývat novým problémem &ndash; rozpoznáním programovacího jazyka na základě zdrojového kódu.</p>
+
+
+
+<h2>Obsah</h2>
+
+<p><a href="#k01">1. Framework Torch: konfigurace struktury neuronových sítí, rozpoznávání programovacího jazyka</a></p>
+<p><a href="#k02">2. Klasické sekvenční neuronové sítě</a></p>
+<p><a href="#k03">3. Otestování správné konstrukce struktury neuronové sítě</a></p>
+<p><a href="#k04">4. Paralelně umístěné vrstvy neuronové sítě</a></p>
+<p><a href="#k05">5. Spojení paralelně umístěných vrstev</a></p>
+<p><a href="#k06">6. Kombinace sekvenční sítě s&nbsp;paralelními podsítěmi</a></p>
+<p><a href="#k07">7. Složitější sekvenčně-paralelní neuronová síť</a></p>
+<p><a href="#k08">8. Projekt pro rozpoznání programovacího jazyka ze zdrojového kódu</a></p>
+<p><a href="#k09">9. Vstup neuronové sítě</a></p>
+<p><a href="#k10">10. Výstup neuronové sítě</a></p>
+<p><a href="#k11">11. Trénovací a validační data</a></p>
+<p><a href="#k12">12. Vytvoření slovníku z&nbsp;trénovacích dat</a></p>
+<p><a href="#k13">13. Ukázka vytvořeného slovníku</a></p>
+<p><a href="#k14">14. Jednoduchá tokenizace slov</a></p>
+<p><a href="#k15">15. Ukázka tokenizovaných slov</a></p>
+<p><a href="#k16">16. Jaké další kroky je nutné implementovat?</a></p>
+<p><a href="#k17">17. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k18">18. Odkazy na Internetu</a></p>
+
+
+
+<p><a name="k01"></a></p>
+<h2 id="k01">1. Framework Torch: konfigurace struktury neuronových sítí, rozpoznávání programovacího jazyka</h2>
+
+<p>Po popisu možností, které nám framework <i>Torch</i> nabízí v&nbsp;oblasti
+rozpoznávání a klasifikace rastrových obrázků, se začneme věnovat dalšímu dosti
+rozsáhlému tématu. I toto téma samozřejmě souvisí s&nbsp;neuronovými sítěmi.
+Pokusíme se totiž vytvořit projekt určený pro klasifikaci zdrojových kódů a
+rozpoznání programovacího jazyka použitého pro zápis zdrojového kódu. Přitom se
+skutečně zaměříme pouze na použití neuronových sítí a základního zpracování
+textů &ndash; schválně se tedy vyhneme všem ad-hoc řešením a různým
+heuristikám, které by samozřejmě bylo možné použít, ovšem zajímavé bude
+sledovat, jak bude klasifikace provedena pouze natrénovanou neuronovou sítí, a
+to bez složitého předzpracování vstupních dat (například ani nebudeme
+odstraňovat poznámky atd.).</p>
+
+<p>Ještě před zahájením tohoto projektu se však musíme seznámit
+s&nbsp;některými dalšími možnostmi konstrukce neuronových sítí. Prozatím jsme
+totiž vždy používali takzvané <i>sekvenční neuronové sítě</i>, v&nbsp;nichž
+byly jednotlivé vrstvy umístěny (sekvenčně) za sebou, ať již se jednalo o
+klasické vrstvy či o vrstvy konvoluční popř.&nbsp;o vrstvy poolovací. Ovšem
+v&nbsp;Torchi lze tvořit i mnoho dalších topologií sítě; například je možné
+kombinovat několik paralelně zařazených vrstev či celých paralelně pracujících
+podsítí. Postačuje jen vhodně zkombinovat kontejnery
+<strong>Sequential</strong> a <strong>Parallel</strong>, což si ukážeme
+v&nbsp;navazujících kapitolách v&nbsp;několika příkladech.</p>
+
+<img src="https://i.iinfo.cz/images/329/torch-nn1-5.png" class="image-312265" alt="&#160;" width="600" height="400" />
+<p><i>Obrázek 1: Uspořádání neuronů do vrstev ve feed-forward síti. Neurony
+jsou sdruženy do vrstev (zde do tří vrstev).</i></p>
+
+
+
+<p><a name="k02"></a></p>
+<h2 id="k02">2. Klasické sekvenční neuronové sítě</h2>
+
+<p>Se sekvenčními neuronovými sítěmi jsme se již seznámili, takže si jen krátce
+zopakujme jejich základní vlastnosti. Nejjednodušší neuronová síť je tvořena
+jedinou vrstvou neuronů. V&nbsp;další funkci je taková neuronová síť vytvořena.
+Vstupem bude tříprvkový tenzor (má jen jednu dimenzi, takže se jedná o vektor),
+výstupem bude tenzor pětiprvkový. Tato síť vlastně nemá příliš velké možnosti
+učení, dokonce ani nemá žádnou nelineární přenosovou funkci:</p>
+
+<pre>
+function construct_simplest_neural_network()
+    local network = nn.Sequential()
+&nbsp;
+    -- jedina vrstva neuronu
+    network:add(nn.Linear(3, 5))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Struktura vytvořené sítě bude následující:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; output]
+  (1): nn.Linear(3 -&gt; 5)
+}
+</pre>
+
+<p>Další síť je již nepatrně složitější, protože obsahuje dvě vrstvy. První
+vrstva má tři vstupy a každý její neuron je spojen se všemi deseti neurony
+vrstvy druhé. Druhá vrstva současně tvoří výstupní hodnoty, které jsou vráceny
+ve formě tenzoru s&nbsp;pěti prvky. Ani tato síť prozatím neobsahuje nelineární
+přenosové funkce:</p>
+
+<pre>
+function construct_two_layers_neural_network()
+    local network = nn.Sequential()
+&nbsp;
+    -- prvni vrstva neuronu
+    network:add(nn.Linear(3, 10))
+&nbsp;
+    -- posledni vrstva neuronu
+    network:add(nn.Linear(10, 5))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Struktura takto vytvořené sítě bude následující:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; output]
+  (1): nn.Linear(3 -&gt; 10)
+  (2): nn.Linear(10 -&gt; 5)
+}
+</pre>
+
+<p>Bez nelineárních funkcí aplikovaných na výstupní hodnoty neuronů jsou
+možnosti neuronových sítí velmi omezené, takže si tyto funkce do naší sítě
+přidejme, zde konkrétně na všechny výstupní signály z&nbsp;první vrstvy:</p>
+
+<pre>
+function construct_neural_network_with_nonlinear_functions()
+    local network = nn.Sequential()
+&nbsp;
+    -- prvni vrstva neuronu
+    network:add(nn.Linear(3, 10))
+&nbsp;
+    -- nelinearni funkce
+    network:add(nn.Tanh())
+&nbsp;
+    -- posledni vrstva neuronu
+    network:add(nn.Linear(10, 5))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Opět se podívejme na strukturu takové sítě:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; output]
+  (1): nn.Linear(3 -&gt; 10)
+  (2): nn.Tanh
+  (3): nn.Linear(10 -&gt; 5)
+}
+</pre>
+
+<p>Poslední klasická sekvenční síť navíc obsahuje skrytou vrstvu neuronů a mezi
+všemi vrstvami jsou použity nelineární funkce (ve skutečnosti jsou tyto funkce
+přímo součástí neuronů, ovšem jejich deklarace se zapisuje zvlášť):</p>
+
+<pre>
+function construct_three_layers_neural_network()
+    local network = nn.Sequential()
+&nbsp;
+    -- prvni vrstva neuronu
+    network:add(nn.Linear(3, 10))
+&nbsp;
+    -- nelinearni funkce
+    network:add(nn.Tanh())
+&nbsp;
+    -- druha (skryta) vrstva neuronu
+    network:add(nn.Linear(10, 15))
+&nbsp;
+    -- nelinearni funkce
+    network:add(nn.Tanh())
+&nbsp;
+    -- posledni vrstva neuronu
+    network:add(nn.Linear(15, 5))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Struktura sítě vypsaná přímo frameworkem Torch funkcí
+<strong>print()</strong>:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; (5) -&gt; output]
+  (1): nn.Linear(3 -&gt; 10)
+  (2): nn.Tanh
+  (3): nn.Linear(10 -&gt; 15)
+  (4): nn.Tanh
+  (5): nn.Linear(15 -&gt; 5)
+}
+</pre>
+
+
+
+<p><a name="k03"></a></p>
+<h2 id="k03">3. Otestování správné konstrukce struktury neuronové sítě</h2>
+
+<p>Výše uvedené neuronové sítě neobsahují žádné chybné konstrukce, protože
+počet výstupů z&nbsp;jedné vrstvy odpovídá počtu vstupů na vrstvě následující.
+Ovšem i kdyby tato podmínka nebyla zachována, bylo by stále možné neuronovou
+síť <i>zkonstruovat</i> (konstrukce totiž probíhá postupně, vrstvy lze kdykoli
+přidat metodou <strong>add</strong>, odebrat metodou <strong>remove</strong>
+atd., takže se v&nbsp;tomto okamžiku žádné kontroly ani provádět nemohou).
+Chyba by nastala až ve chvíli, kdy by se do takové sítě poslala vstupní data.
+Jeden ze základních testů, zda je neuronová síť vytvořena korektně, tedy
+spočívá v&nbsp;tom, že síť zkonstruujeme, pošleme na její vstup tenzor
+očekávané velikosti a tvaru a poté otestujeme, jestli nedošlo k&nbsp;chybě a
+jestli tenzor na výstupu má taktéž očekávanou velikost a tvar.</p>
+
+<p>Není to nic složitého, takže otestujeme všechny čtyři sítě současně. Všechny
+sítě požadují tříprvkový tenzor na vstupu a na výstupu budeme očekávat tenzor
+s&nbsp;pěti prvky (ty budou mít náhodnou hodnotu, neboť sítě nebyly
+natrénovány):</p>
+
+<pre>
+network = construct_simplest_neural_network()
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({1,2,3})))
+print()
+&nbsp;
+network = construct_two_layers_neural_network()
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({1,2,3})))
+print()
+
+network = construct_neural_network_with_nonlinear_functions()
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({1,2,3})))
+print()
+
+network = construct_three_layers_neural_network()
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({1,2,3})))
+print()
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+-0.0781
+-0.2834
+-1.5152
+-0.9320
+-0.6043
+[torch.DoubleTensor of size 5]
+&nbsp;
+ 0.4888
+-0.0895
+ 0.4524
+ 0.3537
+-0.2042
+[torch.DoubleTensor of size 5]
+&nbsp;
+ 0.0158
+ 0.4635
+ 1.0134
+-0.3549
+ 0.3157
+[torch.DoubleTensor of size 5]
+&nbsp;
+-0.3122
+ 0.1928
+-0.2401
+ 0.0737
+-0.0007
+[torch.DoubleTensor of size 5]
+</pre>
+
+
+
+<p><a name="k04"></a></p>
+<h2 id="k04">4. Paralelně umístěné vrstvy neuronové sítě</h2>
+
+<p>Kromě ryze sekvenčních neuronových sítí je možné použít i sítě, v&nbsp;nichž
+jsou vrstvy zpracovávány paralelně. Framework <i>Torch</i> v&nbsp;tomto případě
+postupuje následovně:</p>
+
+<ol>
+
+<li>Rozdělí vstupní tenzor podle zvolené dimenze. Například u dvourozměrného
+tenzoru je možné paralelně zpracovávat řádky nebo sloupce. U trojrozměrného
+tenzoru máme tři možnosti zpracování atd.</li>
+
+<li>Každá část tenzoru je zpracována odděleně (projde svojí částí sítě) a
+následně dojde ke zpětnému spojení výsledků z&nbsp;jednotlivých paralelních
+částí. Pokud nám nevyhovuje formát výstupu (například opět dvourozměrný
+tenzor), musíme na konec sítě zařadit buď krok <strong>Reshape</strong> nebo
+<strong>View</strong>.</li>
+
+</ol>
+
+<p>Při rozdělování vstupního tenzoru do paralelních vrstev se používá funkce
+<strong>select</strong>, s&nbsp;níž jsme se sice již setkali, ale pro jistotu
+si ukážeme její použití na tenzoru se dvěma řádky a třemi sloupci:</p>
+
+<pre>
+input = torch.Tensor({{1,2,3}, {4,5,6}})
+&nbsp;
+print("Vstup:")
+print(input)
+</pre>
+
+<p>Tenzor vypadá takto:</p>
+
+<pre>
+Vstup:
+ 1  2  3
+ 4  5  6
+[torch.DoubleTensor of size 2x3]
+</pre>
+
+<p>Zkusíme vybírat prvky přes první dimenzi:</p>
+
+<pre>
+print("select(1,1):")
+print(input:select(1,1))
+print("select(1,2):")
+print(input:select(1,2))
+</pre>
+
+<p>S&nbsp;těmito výsledky (vidíme, že se vybírá po řádcích):</p>
+
+<pre>
+select(1,1):	
+ 1
+ 2
+ 3
+[torch.DoubleTensor of size 3]
+&nbsp;
+select(1,2):	
+ 4
+ 5
+ 6
+[torch.DoubleTensor of size 3]
+</pre>
+
+<p>Dále zkusíme vybírat prvky přes první dimenzi:</p>
+
+<pre>
+print("select(2,1):")
+print(input:select(2,1))
+print("select(2,2):")
+print(input:select(2,2))
+print("select(2,3):")
+print(input:select(2,3))
+</pre>
+
+<p>S&nbsp;výsledky:</p>
+
+<pre>
+select(2,1):	
+ 1
+ 4
+[torch.DoubleTensor of size 2]
+&nbsp;
+select(2,2):	
+ 2
+ 5
+[torch.DoubleTensor of size 2]
+&nbsp;
+select(2,3):	
+ 3
+ 6
+[torch.DoubleTensor of size 2]
+</pre>
+
+<p>Zkusme si nyní vytvořit velmi jednoduchou paralelní neuronovou síť. Tato síť
+bude na vstupu očekávat tenzor se dvěma řádky a třemi sloupci (viz předchozí
+příklad) a rozdělí tento tenzor podle první dimenze, tj.&nbsp;na dva řádky.
+Každý řádek bude samostatně (a paralelně) zpracován jednou vrstvou neuronů,
+přičemž z&nbsp;každé vrstvy pro jednoduchost získáme jedinou hodnotu. Tyto
+výstupní hodnoty se následně automaticky spojí do výstupního tenzoru:</p>
+
+<pre>
+function construct_1st_parallel_neural_network()
+    -- tenzor se rozdeli podle prvni dimenze
+    -- vysledky se spoji taktez podle prvni dimenze
+    local network = nn.Parallel(1,1)
+&nbsp;
+    -- jedina vrstva neuronu, provadi se paralelne s vrstvou nize
+    network:add(nn.Linear(3, 1))
+&nbsp;
+    -- jedina vrstva neuronu, provadi se paralelne s vrstvou vyse
+    network:add(nn.Linear(3, 1))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Struktura vytvořené sítě:</p>
+
+<pre>
+nn.Parallel {
+  input
+    |`-&gt; (1): nn.Linear(3 -&gt; 1)
+     `-&gt; (2): nn.Linear(3 -&gt; 1)
+     ... -&gt; output
+}
+</pre>
+
+<p>Druhá paralelní síť akceptuje tenzory stejných tvarů (dva řádky, tři
+sloupce), ovšem tentokrát jsou tenzory rozdělené po sloupcích. To znamená, že
+každý sloupec je zpracován ve své vlastní vrstvě, která musí akceptovat dva
+vstupy. Výstupem celé sítě je pro jednoduchost tenzor se třemi prvky:</p>
+
+<pre>
+function construct_2nd_parallel_neural_network()
+    -- tenzor se rozdeli podle druhe dimenze
+    -- vysledky se spoji taktez podle prvni dimenze
+    local network = nn.Parallel(2,1)
+&nbsp;
+    -- jedina vrstva neuronu, provadi se paralelne s vrstvami nize
+    network:add(nn.Linear(2, 1))
+&nbsp;
+    -- jedina vrstva neuronu, provadi se paralelne s vrstvou vyse a nize
+    network:add(nn.Linear(2, 1))
+&nbsp;
+    -- jedina vrstva neuronu, provadi se paralelne s vrstvami vyse
+    network:add(nn.Linear(2, 1))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Struktura vytvořené sítě:</p>
+
+<pre>
+nn.Parallel {
+  input
+    |`-&gt; (1): nn.Linear(2 -&gt; 1)
+    |`-&gt; (2): nn.Linear(2 -&gt; 1)
+     `-&gt; (3): nn.Linear(2 -&gt; 1)
+     ... -&gt; output
+}
+</pre>
+
+
+
+<p><a name="k05"></a></p>
+<h2 id="k05">5. Spojení paralelně umístěných vrstev</h2>
+
+<p>Opět si otestujme, jestli jsou obě paralelní sítě zkonstruovány korektně.
+V&nbsp;obou případech je vstupem tenzor se stejným tvarem, takže můžeme
+vyzkoušet, jaký výstup získáme:</p>
+
+<pre>
+-- prvni typ neuronove site
+network = construct_1st_parallel_neural_network()
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({{1,2,3}, {4,5,6}})))
+</pre>
+
+<p>První síť podle očekávání vrátila dvouprvkový tenzor:</p>
+
+<pre>
+-0.4058
+-5.5876
+[torch.DoubleTensor of size 2]
+</pre>
+
+<pre>
+-- druhy typ neuronove site
+network = construct_2nd_parallel_neural_network()
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({{1,2,3}, {4,5,6}})))
+</pre>
+
+<p>Druhá síť (opět podle očekávání) vrátila tříprvkový tenzor:</p>
+
+<pre>
+ 0.3272
+ 0.2130
+ 1.2222
+[torch.DoubleTensor of size 3]
+</pre>
+
+
+
+<p><a name="k06"></a></p>
+<h2 id="k06">6. Kombinace sekvenční sítě s&nbsp;paralelními podsítěmi</h2>
+
+<p>Paralelní neuronová síť má zdánlivě jednu nevýhodu &ndash; vždy obsahuje jen
+jednu skupinu paralelních vrstev. To by pro praktická použití samozřejmě
+nedostačovalo, ovšem ve skutečnosti je možné toto omezení obejít, a to velmi
+snadno. Postačuje namísto paralelní vrstvy vytvořit novou podsíť. Ta může být
+libovolná &ndash; sekvenční, paralelní, může obsahovat další podsítě atd.
+Musíme však dodržet tvary tenzorů na vstupech a výstupech těchto podsítí, jinak
+by došlo k&nbsp;běhové chybě. Opět si ukažme příklad. Tentokrát se jedná o
+paralelní síť, jejíž jedna vrstva je tvořena běžnými neurony, kdežto vrstva
+druhá je tvořena sekvenční podsítí. Povšimněte si především toho, že obě vrstvy
+mají (musí mít) shodné vstupy (3 prvky) i shodný výstup, aby bylo možné výstupy
+na konci spojit. Z&nbsp;tohoto důvodu musíme do sekvenční podsítě vložit modul
+<strong>Reshape</strong>, který výstup ze dvou neuronů spojí do tenzoru:</p>
+
+<pre>
+function construct_complex_parallel_neural_network()
+    -- tenzor se rozdeli podle prvni dimenze
+    -- vysledky se spoji taktez podle prvni dimenze
+    local network = nn.Parallel(1,1)
+&nbsp;
+    -- jedina vrstva neuronu, provadi se paralelne s podsiti
+    network:add(nn.Linear(3, 1))
+&nbsp;
+    -- podsit
+        local subnetwork = nn.Sequential()
+        -- klasicka vrstva neuronu
+        subnetwork:add(nn.Linear(3, 2))
+        -- potrebujeme ziskat tenzor o rozmerech 2x1 prvek
+        -- z jednodimenzionalniho tenzoru se dvema prvky
+        subnetwork:add(nn.Reshape(2, 1))
+&nbsp;
+    network:add(subnetwork)
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Strukturu sítě si můžeme vypsat a ihned poté otestovat:</p>
+
+<pre>
+network = construct_complex_parallel_neural_network()
+print(network)
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({{1,2,3}, {4,5,6}})))
+print()
+</pre>
+
+<pre>
+nn.Parallel {
+  input
+    |`-&gt; (1): nn.Linear(3 -&gt; 1)
+     `-&gt; (2): nn.Sequential {
+           [input -&gt; (1) -&gt; (2) -&gt; output]
+           (1): nn.Linear(3 -&gt; 2)
+           (2): nn.Reshape(2x1)
+         }
+     ... -&gt; output
+}
+&nbsp;
+-2.3182
+-1.5595
+-0.5659
+[torch.DoubleTensor of size 3]
+</pre>
+
+<p>Dostali jsme vektor se třemi prvky: první prvek byl získán z&nbsp;první
+paralelní vrstvy, druhé dva prvky pak z&nbsp;podsítě.</p>
+
+
+
+<p><a name="k07"></a></p>
+<h2 id="k07">7. Složitější sekvenčně-paralelní neuronová síť</h2>
+
+<p>Pro ilustraci možností, které se nám nabízí, si vytvoříme ještě složitější
+paralelní síť, tentokrát se čtyřmi sekvenčními podsítěmi. Vstupem bude tenzor o
+čtyřech řádcích a třech sloupcích (viz počty podsítí i formát jejich vstupu).
+Výsledkem bude tenzor s&nbsp;osmi prvky (čtyři dvojice spojené dohromady):</p>
+
+<pre>
+function construct_more_complex_parallel_neural_network()
+    -- tenzor se rozdeli podle prvni dimenze
+    -- vysledky se spoji taktez podle prvni dimenze
+    local network = nn.Parallel(1,1)
+&nbsp;
+    -- na vstupu potrebujeme zpracovat ctyrikrat tri vstupy
+    for i=1,4 do
+        -- podsit
+        local subnetwork = nn.Sequential()
+        -- klasicka vrstva neuronu
+        subnetwork:add(nn.Linear(3, 10))
+        -- nelinearni funkce
+        subnetwork:add(nn.Tanh())
+        -- dalsi vrstva neuronu
+        subnetwork:add(nn.Linear(10, 2))
+        -- potrebujeme ziskat tenzor o rozmerech 2x1 prvek
+        -- z jednodimenzionalniho tenzoru se dvema prvky
+        subnetwork:add(nn.Reshape(2, 1))
+        network:add(subnetwork)
+    end
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Výpis struktury sítě a kontrola její funkce:</p>
+
+<pre>
+network = construct_more_complex_parallel_neural_network()
+print(network)
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({{1,2,3}, {4,5,6}, {7,8,9}, {9,-1,-1}})))
+print()
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+nn.Parallel {
+  input
+    |`-&gt; (1): nn.Sequential {
+    |      [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+    |      (1): nn.Linear(3 -&gt; 10)
+    |      (2): nn.Tanh
+    |      (3): nn.Linear(10 -&gt; 2)
+    |      (4): nn.Reshape(2x1)
+    |    }
+    |`-&gt; (2): nn.Sequential {
+    |      [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+    |      (1): nn.Linear(3 -&gt; 10)
+    |      (2): nn.Tanh
+    |      (3): nn.Linear(10 -&gt; 2)
+    |      (4): nn.Reshape(2x1)
+    |    }
+    |`-&gt; (3): nn.Sequential {
+    |      [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+    |      (1): nn.Linear(3 -&gt; 10)
+    |      (2): nn.Tanh
+    |      (3): nn.Linear(10 -&gt; 2)
+    |      (4): nn.Reshape(2x1)
+    |    }
+     `-&gt; (4): nn.Sequential {
+           [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+           (1): nn.Linear(3 -&gt; 10)
+           (2): nn.Tanh
+           (3): nn.Linear(10 -&gt; 2)
+           (4): nn.Reshape(2x1)
+         }
+     ... -&gt; output
+}
+&nbsp;
+&nbsp;
+-0.1663
+ 0.0046
+ 0.3299
+ 0.0677
+-0.1808
+ 0.9577
+ 0.0019
+-0.3650
+[torch.DoubleTensor of size 8x1]
+</pre>
+
+<p>Nejsložitější síť, kterou si dnes ukážeme, je sice sekvenční, ovšem uvnitř
+sekvence vrstev se nachází i paralelní síť (složená opět ze sítí sekvenčních).
+Pokud jste se ztratili, můžete přeskočit zdrojový kód a podívat se pod něj na
+vypsanou strukturu sítě:</p>
+
+<pre>
+function construct_even_more_complex_parallel_neural_network()
+    local network = nn.Sequential()
+        -- tenzor se rozdeli podle prvni dimenze
+        -- vysledky se spoji taktez podle prvni dimenze
+        local subnetwork = nn.Parallel(1,1)
+&nbsp;
+        -- na vstupu potrebujeme zpracovat ctyrikrat tri vstupy
+        for i=1,4 do
+            -- podsit
+            local subsubnetwork = nn.Sequential()
+            -- klasicka vrstva neuronu
+            subsubnetwork:add(nn.Linear(3, 10))
+            -- nelinearni funkce
+            subsubnetwork:add(nn.Tanh())
+            -- dalsi vrstva neuronu
+            subsubnetwork:add(nn.Linear(10, 2))
+            -- potrebujeme ziskat tenzor o rozmerech 2x1 prvek
+            -- z jednodimenzionalniho tenzoru se dvema prvky
+            subsubnetwork:add(nn.Reshape(2, 1))
+            subnetwork:add(subsubnetwork)
+        end
+&nbsp;
+    -- pridame paralelni sit do sekvence vrstev
+    network:add(subnetwork)
+&nbsp;
+    -- zmena tvaru tenzoru (vektor s osmi prvky)
+    network:add(nn.View(8))
+&nbsp;
+    -- klasicka vrstva neuronu
+    network:add(nn.Linear(8, 10))
+&nbsp;
+    -- nelinearni funkce
+    network:add(nn.Tanh())
+    -- klasicka vrstva neuronu
+    network:add(nn.Linear(10, 2))
+&nbsp;
+    return network
+end
+</pre>
+
+<p>Výpis struktury sítě a kontrola její funkce:</p>
+
+<pre>
+network = construct_even_more_complex_parallel_neural_network()
+print(network)
+-- kontrola site se musi provest az v runtime
+print(network:forward(torch.Tensor({{1,2,3}, {4,5,6}, {7,8,9}, {9,-1,-1}})))
+print()
+</pre>
+
+<p>Výsledky:</p>
+
+<pre>
+nn.Sequential {
+  [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; (5) -&gt; output]
+  (1): nn.Parallel {
+    input
+      |`-&gt; (1): nn.Sequential {
+      |      [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+      |      (1): nn.Linear(3 -&gt; 10)
+      |      (2): nn.Tanh
+      |      (3): nn.Linear(10 -&gt; 2)
+      |      (4): nn.Reshape(2x1)
+      |    }
+      |`-&gt; (2): nn.Sequential {
+      |      [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+      |      (1): nn.Linear(3 -&gt; 10)
+      |      (2): nn.Tanh
+      |      (3): nn.Linear(10 -&gt; 2)
+      |      (4): nn.Reshape(2x1)
+      |    }
+      |`-&gt; (3): nn.Sequential {
+      |      [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+      |      (1): nn.Linear(3 -&gt; 10)
+      |      (2): nn.Tanh
+      |      (3): nn.Linear(10 -&gt; 2)
+      |      (4): nn.Reshape(2x1)
+      |    }
+       `-&gt; (4): nn.Sequential {
+             [input -&gt; (1) -&gt; (2) -&gt; (3) -&gt; (4) -&gt; output]
+             (1): nn.Linear(3 -&gt; 10)
+             (2): nn.Tanh
+             (3): nn.Linear(10 -&gt; 2)
+             (4): nn.Reshape(2x1)
+           }
+       ... -&gt; output
+  }
+  (2): nn.View(8)
+  (3): nn.Linear(8 -&gt; 10)
+  (4): nn.Tanh
+  (5): nn.Linear(10 -&gt; 2)
+}
+&nbsp;
+&nbsp;
+&nbsp;
+-0.3605
+ 0.1274
+[torch.DoubleTensor of size 2]
+</pre>
+
+
+
+<p><a name="k08"></a></p>
+<h2 id="k08">8. Projekt pro rozpoznání programovacího jazyka ze zdrojového kódu</h2>
+
+<p>Již v&nbsp;úvodu jsme si řekli, že se dnes mj.&nbsp;budeme zabývat i
+projektem pro rozpoznání programovacího jazyka ze zdrojového kódu. Jedná se o
+jednu z&nbsp;úloh při zpracování textů, a nutno říci, že se jedná o úlohu dosti
+jednoduchou &ndash; existují totiž i mnohem složitější projekty, v&nbsp;nichž
+se neuronové sítě i další prostředky používají pro rozpoznání vět či celých
+větných celků. Co tedy přesně od projektu očekáváme? Měl by například
+akceptovat následující vstup (řetězec popř.&nbsp;soubor):</p>
+
+<pre>
+#include&lt;stdio.h&gt;
+&nbsp;
+int main(void) {
+    printf("Hello World\n");
+    return 0;
+}
+</pre>
+
+<p>Výstup by měl v&nbsp;tomto případě znít &bdquo;C&ldquo;.</p>
+
+<p>Naproti tomu pro vstup:</p>
+
+<pre>
+public class java {
+    public static void main(String[] args) {
+        System.out.println("Hello World");
+    }
+}
+</pre>
+
+<p>by měl výstup znít &bdquo;Java&ldquo;</p>
+
+<p>Něco složitějšího:</p>
+
+<pre>
+sys_exit=1
+sys_write=4
+&nbsp;
+.section .data
+&nbsp;
+hello_lbl:
+        .string "Hello World!\n"
+&nbsp;
+.section .bss
+&nbsp;
+&nbsp;
+.section .text
+        .global _start
+&nbsp;
+_start:
+        mov   $sys_write, %eax
+        mov   $1,%ebx
+        mov   $hello_lbl,%ecx
+        mov   $13,%edx
+        int   $0x80
+&nbsp;
+        movl  $sys_exit,%eax
+        movl  $0,%ebx
+        int   $0x80
+</pre>
+
+<p>Očekávaný výstup může být &bdquo;assembler_x86&ldquo;.</p>
+
+
+
+<p><a name="k09"></a></p>
+<h2 id="k09">9. Vstup neuronové sítě</h2>
+
+<p>Na vstupu celého zpracování se sice nachází běžný text (i když nějak
+strukturovaný), ovšem běžné neuronové sítě nedokážou přímo pracovat ani
+s&nbsp;textem ani s&nbsp;jednotlivými znaky. Proto musíme provést nějaké
+předzpracování. Jedním z&nbsp;nejjednodušších způsobů, jak text transformovat
+do vhodného vstupu spočívá v&nbsp;tom, že jednotlivým slovům (někdy i skupinám
+slov) přiřadíme již před tréninkem neuronové sítě číselné hodnoty (tokenizace).
+Následně každý vstupní text zpracujeme tak, že známá slova převedeme na jejich
+celočíselné tokeny, neznámá slova a znaky budeme ignorovat. Z&nbsp;tokenů je
+možné sestavit vektor, který může být buď:</p>
+
+<ul>
+
+<li>Binární, kde n-tý prvek obsahuje jedničku, pokud se slovo s&nbsp;tokenem n
+vyskytuje ve vstupním textu, jinak obsahuje nulu. Délka vektoru odpovídá počtu
+známých slov (velikosti slovníku).</li>
+
+<li>Vektor také může obsahovat v&nbsp;n-tém prvku počet výskytů slova
+s&nbsp;tokenem n.</li>
+
+<li>Někdy se také provádí váhování jednotlivých slov (například slovo
+<i>the</i> bude mít v&nbsp;anglickém textu nižší váhu).</li>
+
+</ul>
+
+
+
+<p><a name="k10"></a></p>
+<h2 id="k10">10. Výstup neuronové sítě</h2>
+
+<p>Výstup neuronové sítě je snadno pochopitelný. Bude se jednat o jednorozměrný
+tenzor, přičemž počet prvků bude odpovídat počtu programovacích jazyků, která
+síť rozpoznává. Pokud například budeme rozpoznávat pouze tři programovací
+jazyky:</p>
+
+<ol>
+<li>C</li>
+<li>Java</li>
+<li>Python</li>
+</ol>
+
+<p>bude výstupní tenzor tříprvkový. V&nbsp;případě, že získáme například tenzor
+[0.3, 0.15, 0.86], bude to znamenat, že sít rozpoznala Python, a to
+s&nbsp;poměrně velkou mírou jistoty.</p>
+
+<p>Ve skutečnosti se pokusíme klasifikovat minimálně deset jazyků, z&nbsp;nichž
+některé jsou si velmi příbuzné z&nbsp;hlediska struktury i klíčových slov
+(Java, C# atd.).</p>
+
+
+
+<p><a name="k11"></a></p>
+<h2 id="k11">11. Trénovací a validační data</h2>
+
+<p>Trénovací a validační data v&nbsp;tomto případě získáme stejně snadno (ne-li
+snadněji), než v&nbsp;případě databáze rastrových obrázků. Pro každý
+programovací jazyk, který se rozhodneme klasifikovat, stáhneme obsah několika
+Git repositářů, odstraníme nevhodné soubory (Makefile, README.md, ...) a
+roztřídíme soubory do podadresářů pojmenovaných podle daného jazyka:</p>
+
+<pre>
+asm
+C
+C#
+CSS
+HTML
+Java
+Javascript
+Python
+</pre>
+
+<p>Načtení jmen souborů s&nbsp;trénovacími daty:</p>
+
+<pre>
+TRAIN_DATA_DIRECTORY = "train_data"
+&nbsp;
+local train_files = read_filelist_recursive(TRAIN_DATA_DIRECTORY)
+&nbsp;
+&nbsp;
+&nbsp;
+function read_filelist_recursive(directory)
+    local command = "find " .. directory .. " -type f"
+    local handle = io.popen(command)
+    local filelist = {}
+    for line in handle:lines() do
+        table.insert(filelist, line)
+    end
+    handle:close()
+    return filelist
+end
+</pre>
+
+
+
+<p><a name="k12"></a></p>
+<h2 id="k12">12. Vytvoření slovníku z&nbsp;trénovacích dat</h2>
+
+<p>Pro vytvoření slovníku ze všech trénovacích dat bude sloužit následující
+modul. Povšimněte si, že rozpoznáváme jen některé znaky a že ze slovníku
+odstraňujeme slova, která se v&nbsp;datech vyskytují jen v&nbsp;malém
+počtu:</p>
+
+<pre>
+function string_to_wordlist(s)
+    local words = s:gmatch("[%w&amp;!@%%$~`$^]+")
+    local result = {}
+    for word in words do
+        word = word:trim()
+        -- ignorovat prazdna slova
+        if word ~= "" then
+            table.insert(result, word)
+        end
+    end
+    return result
+end
+&nbsp;
+&nbsp;
+function load_words_from_file(filename)
+    local source = load_source(filename)
+    return string_to_wordlist(source)
+end
+&nbsp;
+&nbsp;
+function filter_words(vocabulary, min_word_count)
+    local result = {}
+    for word, count in pairs(vocabulary) do
+        if count &gt;= min_word_count then
+            table.insert(result, word)
+        end
+    end
+    return result
+end
+&nbsp;
+&nbsp;
+function make_vocabulary(filenames)
+    local vocabulary = {}
+&nbsp;
+    for _, filename in ipairs(filenames) do
+        local words = load_words_from_file(filename)
+        for _, word in ipairs(words) do
+            if vocabulary[word] then
+                vocabulary[word] = vocabulary[word] + 1
+            else
+                vocabulary[word] = 1
+            end
+        end
+    end
+&nbsp;
+    local words = filter_words(vocabulary, 5)
+    table.sort(words)
+    return words
+end
+</pre>
+
+
+
+<p><a name="k13"></a></p>
+<h2 id="k13">13. Ukázka vytvořeného slovníku</h2>
+
+<p>Podívejme se, jak může vypadat slovník vytvořený předchozím programovým
+kódem. Slovník vypsaný pod tímto odstavcem byl získán z&nbsp;céčkových
+zdrojových kódů jádra Linuxu verze 0.01, které naleznete v&nbsp;repositáři <a
+href="https://github.com/zavg/linux-0.01">https://github.com/zavg/linux-0.01</a>.
+Zpracovány byly pouze všechny hlavičkové soubory a céčkové soubory, nikoli
+části psané v&nbsp;assembleru, soubory Makefile atd. Poznámka: výše uvedený kód
+generuje jedno slovo na řádek, takže následující výpis musel být navíc
+zpracován utilitou <strong>column</strong>:</p>
+
+<pre>
+!               NAME            cp              is              sb
+!S              NO              cr              isn             scasb
+!bh             NOTE!           create          it              sched
+!current        NR              crw             j               schedule
+!i              NULL            cs              je              scr
+!inode          O               csi             jiffies         sec
+!namelen        OK              cstime          jmp             secondary
+!p              OMAGIC          ct              jne             sect
+!par            OPEN            ctime           just            section
+!permission     OPOST           ctmp            kernel          sector
+$0              Ok              ctype           kill            sects
+$0x80           P               cur             know            see
+$1              PAGE            current         l               seg
+%               PAGES           cursor          last            segment
+%%ah            PC              cutime          ldt             send
+%%al            PER             cx              leader          set
+%%ax            PIPE            cyl             left            setsid
+%%eax           POSIX           d               len             short
+%%ecx           PUTCH           data            length          should
+%%edi           READ            de              lf              si
+%%edx           READY           decl            lflag           sig
+%%fs            REQUEST         default         like            sign
+%0              S               define          limit           signal
+%04x            SC              defined         line            sigset
+%1              SCREEN          delete          lines           size
+%2              SEEK            desc            link            sizeof
+%3              SEGMENT         dest            linux           sleep
+%4              SET             dev             list            so
+%d              SIG             device          ll              some
+%p              SIZE            di              lock            something
+&amp;               START           die             long            sorting
+&amp;&amp;              STAT            digit           m               sp
+&amp;FIRST          STATUS          digits          magic           space
+&amp;basename       SUPER           dind            main            specified
+&amp;de             SYS             dir             major           speed
+&amp;inode          T               directory       mask            src
+&amp;namelen        TASK            dirt            math            st
+&amp;super          TASKS           do              may             stack
+&amp;tty            TIME            don             mem             start
+0               TIOCM           drive           memory          startup
+0000000         TO              ds              mi              stat
+0000400         TRUNC           dup             might           statbuf
+0001000         TSS             dx              min             state
+0002000         TXTOFF          ebp             minimum         static
+0004000         TYPE            ebx             minor           sti
+0010000         The             ecx             mm              stime
+0020000         This            edi             mode            stosb
+0040000         U               edx             modtime         stosw
+0777            Unable          egid            mon             str
+0x0720          WIN             eip             mount           string
+0x0f            WRITE           element         movb            strings
+0x17            We              else            movl            strtok
+0x21            X               empty           mtime           struct
+0x80            Z               end             n               super
+0xffff          ZEROPAD         endif           name            switch
+0xffffffff      ZMAGIC          entry           namei           symbol
+1               a               envc            namelen         sync
+10              access          envp            never           sys
+1024            actime          erase           new             syscall0
+11              add             errno           next            system
+12              addr            error           nlinks          t
+13              address         errors          no              t%8x
+14              after           es              node            table
+15              alarm           esi             nonexistent     tables
+16              all             esp             not             task
+17              allocated       etc             nothing         tdecl
+1b              already         euid            notl            termio
+2               also            ex              npar            termios
+24              an              exec            nr              testb
+29              and             execve          nsector         text
+2f              any             exit            num             that
+3               are             extern          number          the
+30              area            f               of              them
+31              aren            failed          off             these
+32              arg             father          offset          they
+3f              argc            fault           oflag           things
+4               args            fcntl           ok              this
+5               argv            fd              old             time
+510             as              field           oldalarm        times
+512             asm             fildes          oldbottom       tloc
+6               at              file            oldinode        tlodsb
+7               atime           filename        oldtop          tm
+8               attr            filp            on              tmp
+8192            atype           find            only            tms
+9               ax              first           open            to
+A               b               flag            options         top
+ACCMODE         bad             flags           or              tp
+AP              base            flush           origin          trap
+APPEND          basename        fmt             other           trying
+ARG             be              fn              out             tss
+BCD             bh              for             outb            tty
+BIN             bit             fork            p               ttyx
+BLOCK           bits            free            page            txorl
+BUFFER          blk             from            panic           type
+BUFFERS         block           fs              par             typedef
+Bad             blocknr         functions       pathname        types
+C               blocks          g               pause           uid
+CANON           bmap            gate            pgrp            umask
+CHAR            boot            gdt             pid             union
+CMOS            bottom          get             pipe            unistd
+CRNL            bread           getblk          pop             unlock
+CURRENT         break           gid             port            unsigned
+D               brelse          goto            pos             until
+DATA            brk             gotoxy          precision       up
+DAY             bss             h               prev            uptodate
+DIR             buf             has             printf          use
+EACCES          buffer          hash            printk          used
+EBADF           but             have            priv            user
+ECHO            by              hd              process         ustat
+ECHOCTL         byte            head            ptr             utime
+EINVAL          bytes           header          pushl           utsname
+EMPTY           c               here            put             va
+END             call            i               pwd             val
+ENOENT          called          id              q               value
+ENOSPC          can             if              queue           verify
+ENOSYS          cannot          ifdef           queues          void
+ENTRIES         case            iflag           r               volatile
+ENTRY           cc              ifndef          rd              vsprintf
+EOF             cflag           iget            read            wait
+EPERM           change          ih              ready           waitpid
+F               channel         imap            register        wake
+FILE            char            implemented     release         want
+FIRST           chars           in              relocation      we
+FLAG            check           inb             rep             well
+H               chmod           include         repeat          when
+HD              cld             ind             repne           which
+HEADER          clear           info            req             while
+I               cli             information     request         width
+IFMT            close           init            res             will
+INODE           cmd             inline          reset           with
+ISCHR           cmpb            ino             restore         work
+ISDIR           code            inode           result          write
+ISREG           columns         inodes          return          written
+It              con             inr             returns         x
+L               console         insert          root            y
+LASTARG         const           int             rounded         year
+LEFT            contains        interrupt       routine         you
+LEN             continue        interrupts      rs              zero
+LIBRARY         control         into            rw              zmap
+MAGIC           controller      intr            s               zone
+MAJOR           coprocessor     invalid         s1              ~
+MAX             copy            io              s2
+MAY             count           ioctl           same
+N               counter         iput            saved
+</pre>
+
+
+
+<p><a name="k14"></a></p>
+<h2 id="k14">14. Jednoduchá tokenizace slov</h2>
+
+<p>Funkce pro tokenizaci je poněkud složitější, než by prozatím bylo nutné,
+protože se snažím o vytvoření stejných tokenů, jaké generuje tato třída: <a
+href="https://github.com/keras-team/keras/blob/master/keras/preprocessing/text.py#L119">https://github.com/keras-team/keras/blob/master/keras/preprocessing/text.py#L119</a>,
+která je v&nbsp;oblasti zpracování textů často používaná. Tokeny jsou slovům
+přiřazeny na základě frekvence slov (což v&nbsp;našem případě nehraje velkou
+roli, alespoň prozatím):</p>
+
+<pre>
+function make_word_to_index_mapping(words)
+    local uniq_words = {}
+    local word_counts = {}
+    for _, word in ipairs(words) do
+        if word_counts[word] then
+            word_counts[word] = word_counts[word] + 1
+        else
+            word_counts[word] = 1
+            table.insert(uniq_words, word)
+        end
+    end
+&nbsp;
+    -- tabulka obsahujici dvojice [slovo+frekvence] setridene sestupne podle frekvence
+    local wcounts = {}
+    for _, word in ipairs(uniq_words) do
+        table.insert(wcounts, {word, word_counts[word]})
+    end
+    table.sort(wcounts, function(x,y) return x[2] &gt; y[2] end)
+&nbsp;
+    -- seznam slov setrideny sestupne podle frekvenci
+    local sorted_voc = {}
+    for _, wc in ipairs(wcounts) do
+        table.insert(sorted_voc, wc[1])
+    end
+&nbsp;
+    -- slovnik slovo -&gt; index
+    local word_index = {}
+    for i, w in ipairs(sorted_voc) do
+        word_index[w] = i
+    end
+    return word_index
+end
+</pre>
+
+
+
+<p><a name="k15"></a></p>
+<h2 id="k15">15. Ukázka tokenizovaných slov</h2>
+
+<p>Podívejme se nyní, jak vypadají tokeny jednotlivých slov, které byly získány
+ze zdrojových kódů jádra Linuxu. Slova jsou setříděna podle přiřazeného
+tokenu:</p>
+
+<pre>
+sort -k2n tokens.txt
+</pre>
+
+<p>Výsledek opět zpracujeme příkazem <strong>column</strong> (klasicky přes
+rouru). Povšimněte si, že kvůli tomu, že nebyly odstraněny poznámky, je seznam
+poněkud &bdquo;zvláštní&ldquo;, což je ale přesně to, co od projektu očekáváme
+&ndash; žádné ad-hoc řešení ani použití heuristik. Mimochodem: při letmém
+procházení jsem ani nenarazil na žádné vyložené sprosťárny :-):</p>
+
+<pre>
+!             1               zero         240              !bh                 479
+mm            2               zmap         241              !current            480
+mode          3               work         242              !S                  481
+modtime       4               year         243              %%edx               482
+mon           5               x            244              !permission         483
+minor         6               y            245              $0x80               484
+min           7               written      246              %%ax                485
+minimum       8               uid          247              %%eax               486
+mi            9               wait         248              %%ecx               487
+might         10              volatile     249              $0                  488
+memory        11              until        250              %%al                489
+mount         12              up           251              %                   490
+movl          13              uptodate     252              %%ah                491
+namelen       14              use          253              $1                  492
+never         15              unsigned     254              APPEND              493
+new           16              unistd       255              0002000             494
+movb          17              unlock       256              0010000             495
+namei         18              union        257              31                  496
+n             19              vsprintf     258              32                  497
+name          20              used         259              3f                  498
+mtime         21              ustat        260              4                   499
+next          22              value        261              30                  500
+mem           23              verify       262              2f                  501
+math          24              void         263              3                   502
+limit         25              user         264              24                  503
+line          26              val          265              29                  504
+lines         27              utsname      266              2                   505
+link          28              va           267              5                   506
+like          29              utime        268              512                 507
+lf            30              printk       269              9                   508
+lflag         31              strtok       270              A                   509
+length        32              string       271              ACCMODE             510
+may           33              rounded      272              510                 511
+linux         34              routine      273              8192                512
+ll            35              rs           274              7                   513
+main          36              rw           275              8                   514
+major         37              root         276              6                   515
+mask          38              return       277              0004000             516
+list          39              returns      278              1b                  517
+magic         40              restore      279              16                  518
+long          41              result       280              0x0f                519
+m             42              reset        281              0x17                520
+lock          43              s            282              0x21                521
+len           44              s2           283              0x80                522
+nlinks        45              sched        284              0x0720              523
+node          46              schedule     285              0040000             524
+outb          47              scr          286              0777                525
+p             48              s1           287              0020000             526
+page          49              scasb        288              17                  527
+panic         50              saved        289              0xffff              528
+out           51              sb           290              1                   529
+origin        52              same         291              13                  530
+other         53              sec          292              14                  531
+options       54              res          293              15                  532
+or            55              req          294              0xffffffff          533
+open          56              pwd          295              12                  534
+par           57              q            296              1024                535
+pause         58              queue        297              11                  536
+port          59              queues       298              10                  537
+pos           60              put          299              execve              538
+precision     61              ptr          300              SYS                 539
+pathname      62              pushl        301              TASK                540
+pop           63              process      302              ctmp                541
+pid           64              request      303              ctype               542
+pipe          65              r            304              cur                 543
+pgrp          66              read         305              current             544
+no            67              rep          306              ctime               545
+only          68              repeat       307              cstime              546
+oldtop        69              repne        308              ct                  547
+npar          70              rd           309              cs                  548
+nr            71              relocation   310              csi                 549
+nsector       72              register     311              crw                 550
+num           73              release      312              cursor              551
+notl          74              ready        313              cx                  552
+not           75              strings      314              decl                553
+nothing       76              secondary    315              default             554
+nonexistent   77              section      316              define              555
+on            78              src          317              cutime              556
+number        79              st           318              de                  557
+off           80              stack        319              d                   558
+oldalarm      81              start        320              data                559
+oldbottom     82              speed        321              cyl                 560
+oldinode      83              space        322              defined             561
+of            84              specified    323              create              562
+old           85              sp           324              cp                  563
+oflag         86              sorting      325              cmpb                564
+ok            87              startup      326              code                565
+offset        88              statbuf      327              columns             566
+prev          89              stosb        328              con                 567
+left          90              stosw        329              cmd                 568
+ldt           91              str          330              cli                 569
+get           92              stat         331              close               570
+getblk        93              stime        332              clear               571
+gid           94              static       333              cr                  572
+goto          95              sti          334              console             573
+gdt           96              state        335              contains            574
+g             97              sect         336              copy                575
+gate          98              something    337              count               576
+fs            99              so           338              counter             577
+functions     100             segment      339              const               578
+from          101             send         340              coprocessor         579
+gotoxy        102             set          341              control             580
+has           103             setsid       342              controller          581
+header        104             seg          343              continue            582
+here          105             sects        344              cld                 583
+i             106             see          345              delete              584
+h             107             sector       346              dest                585
+head          108             some         347              endif               586
+have          109             short        348              entry               587
+hd            110             si           349              envc                588
+hash          111             size         350              envp                589
+id            112             sizeof       351              end                 590
+free          113             sleep        352              else                591
+for           114             should       353              empty               592
+fcntl         115             sigset       354              eip                 593
+fd            116             sign         355              element             594
+field         117             signal       356              egid                595
+fildes        118             sig          357              erase               596
+fault         119             zone         358              error               597
+failed        120             exit         359              etc                 598
+father        121             exec         360              euid                599
+f             122             EOF          361              ex                  600
+fork          123             EPERM        362              errno               601
+file          124             F            363              esp                 602
+filp          125             FILE         364              es                  603
+flush         126             ENTRY        365              esi                 604
+fmt           127             ENOSYS       366              errors              605
+fn            128             ENTRIES      367              desc                606
+filename      129             ENOENT       368              edx                 607
+flags         130             ENOSPC       369              ecx                 608
+first         131             END          370              digit               609
+flag          132             FIRST        371              digits              610
+find          133             H            372              dind                611
+leader        134             INODE        373              dir                 612
+if            135             ISCHR        374              die                 613
+iflag         136             ISDIR        375              device              614
+is            137             FLAG         376              di                  615
+isn           138             IFMT         377              dev                 616
+it            139             HEADER       378              edi                 617
+j             140             I            379              directory           618
+iput          141             HD           380              do                  619
+io            142             ISREG        381              dx                  620
+ioctl         143             EMPTY        382              ebp                 621
+intr          144             ECHOCTL      383              ebx                 622
+invalid       145             Bad          384              dirt                623
+into          146             C            385              dup                 624
+je            147             CANON        386              drive               625
+jmp           148             CHAR         387              ds                  626
+know          149             BUFFERS      388              don                 627
+l             150             BLOCK        389              T                   628
+last          151             BUFFER       390              chmod               629
+jiffies       152             BIN          391              chars               630
+kill          153             EINVAL       392              all                 631
+just          154             CMOS         393              allocated           632
+kernel        155             CURRENT      394              already             633
+jne           156             EACCES       395              also                634
+ifdef         157             EBADF        396              alarm               635
+interrupts    158             ECHO         397              address             636
+int           159             CRNL         398              after               637
+implemented   160             DIR          399              add                 638
+in            161             DATA         400              addr                639
+inb           162             DAY          401              actime              640
+include       163             D            402              an                  641
+imap          164             BCD          403              any                 642
+iget          165             It           404              argc                643
+ih            166             LASTARG      405              args                644
+ifndef        167             READ         406              argv                645
+interrupt     168             READY        407              and                 646
+ind           169             REQUEST      408              arg                 647
+information   170             S            409              area                648
+inodes        171             PUTCH        410              aren                649
+inr           172             PIPE         411              are                 650
+insert        173             POSIX        412              as                  651
+info          174             PC           413              access              652
+inode         175             PER          414              ZMAGIC              653
+inline        176             PAGES        415              TRUNC               654
+ino           177             SC           416              TSS                 655
+init          178             SEEK         417              TXTOFF              656
+extern        179             START        418              TYPE                657
+printf        180             STAT         419              TO                  658
+priv          181             STATUS       420              TIME                659
+tlodsb        182             SCREEN       421              TIOCM               660
+tm            183             SIZE         422              TASKS               661
+tmp           184             SET          423              a                   662
+tms           185             SIG          424              The                 663
+tloc          186             SEGMENT      425              U                   664
+time          187             L            426              X                   665
+times         188             PAGE         427              Z                   666
+things        189             Ok           428              ZEROPAD             667
+this          190             MAJOR        429              This                668
+they          191             MAX          430              We                  669
+to            192             MAY          431              WIN                 670
+tp            193             N            432              WRITE               671
+ttyx          194             MAGIC        433              Unable              672
+txorl         195             LEN          434              check               673
+type          196             LIBRARY      435              asm                 674
+top           197             LEFT         436              atime               675
+tty           198             P            437              by                  676
+trying        199             NAME         438              byte                677
+tss           200             NOTE!        439              bytes               678
+trap          201             OMAGIC       440              c                   679
+typedef       202             OPEN         441              but                 680
+these         203             OPOST        442              buf                 681
+the           204             NO           443              buffer              682
+sys           205             OK           444              bss                 683
+syscall0      206             NULL         445              brk                 684
+system        207             O            446              call                685
+t             208             NR           447              can                 686
+sync          209             SUPER        448              change              687
+switch        210             ARG          449              channel             688
+symbol        211             AP           450              char                689
+super         212             %d           451              called              690
+them          213             %p           452              cflag               691
+t%8x          214             &amp;            453              case                692
+tables        215             &amp;&amp;           454              cc                  693
+testb         216             %4           455              cannot              694
+text          217             %2           456              at                  695
+that          218             %3           457              brelse              696
+table         219             %04x         458              bread               697
+termios       220             %1           459              bad                 698
+tdecl         221             %0           460              base                699
+termio        222             &amp;FIRST       461              basename            700
+task          223             &amp;de          462              be                  701
+struct        224             0            463              b                   702
+types         225             0000000      464              atype               703
+umask         226             0000400      465              ax                  704
+which         227             &amp;basename    466              attr                705
+while         228             &amp;tty         467              break               706
+width         229             &amp;namelen     468              bh                  707
+will          230             &amp;super       469              bits                708
+when          231             &amp;inode       470              bmap                709
+we            232             0001000      471              boot                710
+well          233             %%fs         472              bottom              711
+wake          234             %%edi        473              bit                 712
+want          235             !inode       474              blocks              713
+waitpid       236             !namelen     475              block               714
+with          237             !p           476              blocknr             715
+write         238             !par         477              blk                 716
+you           239             !i           478              ~                   717
+</pre>
+
+
+
+<p><a name="k16"></a></p>
+<h2 id="k16">16. Jaké další kroky je nutné implementovat?</h2>
+
+<p>V&nbsp;dalších krocích postupně:</p>
+
+<ol>
+<li>Budeme načítat trénovací soubory.</li>
+<li>Ty rozdělíme do slov, slova tokenizujeme a vytvoříme vektory
+s&nbsp;četností slov.</li>
+<li>Vektory se po normalizaci předají neuronové síti pro trénink (očekávaný
+výsledek známe).</li>
+<li>Stejný postup aplikujeme i na validační data, samozřejmě s&nbsp;tím, že
+budeme kontrolovat očekávány výsledek oproti klasifikaci neuronové sítě.</li>
+</ol>
+
+
+
+<p><a name="k17"></a></p>
+<h2 id="k17">17. Repositář s&nbsp;demonstračními příklady</h2>
+
+<p>Demonstrační příklady, který jsme si popsali v&nbsp;předchozích kapitolách,
+najdete v&nbsp;GIT repositáři dostupném na adrese <a
+href="https://github.com/tisnik/torch-examples.git">https://github.com/tisnik/torch-examples.git</a>.
+Následují odkazy na zdrojové kódy jednotlivých příkladů:</p>
+
+<table>
+<tr><th>Soubor</th><th>Adresa</th></tr>
+<tr><td>complex.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/nn_types/complex.lua">https://github.com/tisnik/torch-examples/blob/master/nn/nn_types/complex.lua</a></td></tr>
+<tr><td>parallel.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/nn_types/parallel.lua">https://github.com/tisnik/torch-examples/blob/master/nn/nn_types/parallel.lua</a></td></tr>
+<tr><td>sequential.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/nn_types/sequential.lua">https://github.com/tisnik/torch-examples/blob/master/nn/nn_types/sequential.lua</a></td></tr>
+</table>
+
+<p>Další soubory uložené do repositáře jsou součástí vznikajícího projektu pro
+rozpoznání programovacích jazyků:</p>
+
+<table>
+<tr><th>Soubor</th><th>Adresa</th></tr>
+<tr><td>language_detector.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/language_detector.lua">https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/language_detector.lua</a></td></tr>
+<tr><td>utils/files.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/utils/files.lua">https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/utils/files.lua</a></td></tr>
+<tr><td>utils/strings.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/utils/strings.lua">https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/utils/strings.lua</a></td></tr>
+<tr><td>vocabulary/maker.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/vocabulary/maker.lua">https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/vocabulary/maker.lua</a></td></tr>
+<tr><td>vocabulary/tokenizer.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/vocabulary/tokenizer.lua">https://github.com/tisnik/torch-examples/blob/master/nn/language_detector/vocabulary/tokenizer.lua</a></td></tr>
+</table>
+
+
+
+<p><a name="k18"></a></p>
+<h2 id="k18">18. Odkazy na Internetu</h2>
+
+<ol>
+
+<li>Use Deep Learning to Detect Programming Languages<br />
+<a href="http://searene.me/2017/11/26/use-neural-networks-to-detect-programming-languages/">http://searene.me/2017/11/26/use-neural-networks-to-detect-programming-languages/</a>
+</li>
+
+<li>Natural-language processing<br />
+<a href="https://en.wikipedia.org/wiki/Natural-language_processing">https://en.wikipedia.org/wiki/Natural-language_processing</a>
+</li>
+
+<li>Současné projekty z&nbsp;oblasti NLP<br />
+<a href="https://nlp.fi.muni.cz/~xpopelk/html/html/%C4%8Cesky/Projekty.html">https://nlp.fi.muni.cz/~xpopelk/html/html/%C4%8Cesky/Projekty.html</a>
+</li>
+
+<li>THE MNIST DATABASE of handwritten digits<br />
+<a href="http://yann.lecun.com/exdb/mnist/">http://yann.lecun.com/exdb/mnist/</a>
+</li>
+
+<li>MNIST database (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/MNIST_database">https://en.wikipedia.org/wiki/MNIST_database</a>
+</li>
+
+<li>MNIST For ML Beginners<br />
+<a href="https://www.tensorflow.org/get_started/mnist/beginners">https://www.tensorflow.org/get_started/mnist/beginners</a>
+</li>
+
+<li>Stránka projektu Torch<br />
+<a href="http://torch.ch/">http://torch.ch/</a>
+</li>
+
+<li>Torch: Serialization<br />
+<a href="https://github.com/torch/torch7/blob/master/doc/serialization.md">https://github.com/torch/torch7/blob/master/doc/serialization.md</a>
+</li>
+
+<li>Torch: modul image<br />
+<a href="https://github.com/torch/image/blob/master/README.md">https://github.com/torch/image/blob/master/README.md</a>
+</li>
+
+<li>Data pro neuronové sítě<br />
+<a href="http://archive.ics.uci.edu/ml/index.php">http://archive.ics.uci.edu/ml/index.php</a>
+</li>
+
+<li>LED Display Domain Data Set<br />
+<a href="http://archive.ics.uci.edu/ml/datasets/LED+Display+Domain">http://archive.ics.uci.edu/ml/datasets/LED+Display+Domain</a>
+</li>
+
+<li>Torch na GitHubu (několik repositářů)<br />
+<a href="https://github.com/torch">https://github.com/torch</a>
+</li>
+
+<li>Torch (machine learning), Wikipedia<br />
+<a href="https://en.wikipedia.org/wiki/Torch_%28machine_learning%29">https://en.wikipedia.org/wiki/Torch_%28machine_learning%29</a>
+</li>
+
+<li>Torch Package Reference Manual<br />
+<a href="https://github.com/torch/torch7/blob/master/README.md">https://github.com/torch/torch7/blob/master/README.md</a>
+</li>
+
+<li>Torch Cheatsheet<br />
+<a href="https://github.com/torch/torch7/wiki/Cheatsheet">https://github.com/torch/torch7/wiki/Cheatsheet</a>
+</li>
+
+<li>Neural network containres (Torch)<br />
+<a href="https://github.com/torch/nn/blob/master/doc/containers.md">https://github.com/torch/nn/blob/master/doc/containers.md</a>
+</li>
+
+<li>Simple layers<br />
+<a href="https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear">https://github.com/torch/nn/blob/master/doc/simple.md#nn.Linear</a>
+</li>
+
+<li>Transfer Function Layers<br />
+<a href="https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok">https://github.com/torch/nn/blob/master/doc/transfer.md#nn.transfer.dok</a>
+</li>
+
+<li>Feedforward neural network<br />
+<a href="https://en.wikipedia.org/wiki/Feedforward_neural_network">https://en.wikipedia.org/wiki/Feedforward_neural_network</a>
+</li>
+
+<li>Biologické algoritmy (4) - Neuronové sítě<br />
+<a href="https://www.root.cz/clanky/biologicke-algoritmy-4-neuronove-site/">https://www.root.cz/clanky/biologicke-algoritmy-4-neuronove-site/</a>
+</li>
+
+<li>Biologické algoritmy (5) - Neuronové sítě<br />
+<a href="https://www.root.cz/clanky/biologicke-algoritmy-5-neuronove-site/">https://www.root.cz/clanky/biologicke-algoritmy-5-neuronove-site/</a>
+</li>
+
+<li>Umělá neuronová síť (Wikipedia)<br />
+<a href="https://cs.wikipedia.org/wiki/Um%C4%9Bl%C3%A1_neuronov%C3%A1_s%C3%AD%C5%A5">https://cs.wikipedia.org/wiki/Um%C4%9Bl%C3%A1_neuronov%C3%A1_s%C3%AD%C5%A5</a>
+</li>
+
+<li>Učení s učitelem (Wikipedia)<br />
+<a href="https://cs.wikipedia.org/wiki/U%C4%8Den%C3%AD_s_u%C4%8Ditelem">https://cs.wikipedia.org/wiki/U%C4%8Den%C3%AD_s_u%C4%8Ditelem</a>
+</li>
+
+<li>Plotting with Torch7<br />
+<a href="http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/">http://www.lighting-torch.com/2015/08/24/plotting-with-torch7/</a>
+</li>
+
+<li>Plotting Package Manual with Gnuplot<br />
+<a href="https://github.com/torch/gnuplot/blob/master/README.md">https://github.com/torch/gnuplot/blob/master/README.md</a>
+</li>
+
+<li>An Introduction to Tensors<br />
+<a href="https://math.stackexchange.com/questions/10282/an-introduction-to-tensors">https://math.stackexchange.com/questions/10282/an-introduction-to-tensors</a>
+</li>
+
+<li>Gaussian filter<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_filter">https://en.wikipedia.org/wiki/Gaussian_filter</a>
+</li>
+
+<li>Gaussian function<br />
+<a href="https://en.wikipedia.org/wiki/Gaussian_function">https://en.wikipedia.org/wiki/Gaussian_function</a>
+</li>
+
+<li>Laplacian/Laplacian of Gaussian<br />
+<a href="http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm">http://homepages.inf.ed.ac.uk/rbf/HIPR2/log.htm</a>
+</li>
+
+<li>Odstranění šumu<br />
+<a href="https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu">https://cs.wikipedia.org/wiki/Odstran%C4%9Bn%C3%AD_%C5%A1umu</a>
+</li>
+
+<li>Binary image<br />
+<a href="https://en.wikipedia.org/wiki/Binary_image">https://en.wikipedia.org/wiki/Binary_image</a>
+</li>
+
+<li>Erosion (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Erosion_%28morphology%29">https://en.wikipedia.org/wiki/Erosion_%28morphology%29</a>
+</li>
+
+<li>Dilation (morphology)<br />
+<a href="https://en.wikipedia.org/wiki/Dilation_%28morphology%29">https://en.wikipedia.org/wiki/Dilation_%28morphology%29</a>
+</li>
+
+<li>Mathematical morphology<br />
+<a href="https://en.wikipedia.org/wiki/Mathematical_morphology">https://en.wikipedia.org/wiki/Mathematical_morphology</a>
+</li>
+
+<li>Cvičení 10 - Morfologické operace<br />
+<a href="http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php">http://midas.uamt.feec.vutbr.cz/ZVS/Exercise10/content_cz.php</a>
+</li>
+
+<li>Differences between a matrix and a tensor<br />
+<a href="https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor">https://math.stackexchange.com/questions/412423/differences-between-a-matrix-and-a-tensor</a>
+</li>
+
+<li>Qualitatively, what is the difference between a matrix and a tensor?<br />
+<a href="https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?">https://math.stackexchange.com/questions/1444412/qualitatively-what-is-the-difference-between-a-matrix-and-a-tensor?</a>
+</li>
+
+<li>BLAS (Basic Linear Algebra Subprograms)<br />
+<a href="http://www.netlib.org/blas/">http://www.netlib.org/blas/</a>
+</li>
+
+<li>Basic Linear Algebra Subprograms (Wikipedia)<br />
+<a href="https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms">https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms</a>
+</li>
+
+<li>Comparison of deep learning software<br />
+<a href="https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software">https://en.wikipedia.org/wiki/Comparison_of_deep_learning_software</a>
+</li>
+
+<li>TensorFlow<br />
+<a href="https://www.tensorflow.org/">https://www.tensorflow.org/</a>
+</li>
+
+<li>Caffe2 (A New Lightweight, Modular, and Scalable Deep Learning Framework)<br />
+<a href="https://caffe2.ai/">https://caffe2.ai/</a>
+</li>
+
+<li>PyTorch<br />
+<a href="http://pytorch.org/">http://pytorch.org/</a>
+</li>
+
+<li>Seriál o programovacím jazyku Lua<br />
+<a href="http://www.root.cz/serialy/programovaci-jazyk-lua/">http://www.root.cz/serialy/programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (2)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-2/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (3)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-3/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (4)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-4/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (5 - tabulky a pole)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-5-tabulky-a-pole/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (6 - překlad programových smyček do mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-6-preklad-programovych-smycek-do-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (7 - dokončení popisu mezijazyka LuaJITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-7-dokonceni-popisu-mezijazyka-luajitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (8 - základní vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-8-zakladni-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (9 - další vlastnosti trasovacího JITu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-9-dalsi-vlastnosti-trasovaciho-jitu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (10 - JIT překlad do nativního kódu)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-10-jit-preklad-do-nativniho-kodu/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (11 - JIT překlad do nativního kódu procesorů s architekturami x86 a ARM)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-11-jit-preklad-do-nativniho-kodu-procesoru-s-architekturami-x86-a-arm/</a>
+</li>
+
+<li>LuaJIT - Just in Time překladač pro programovací jazyk Lua (12 - překlad operací s reálnými čísly)<br />
+<a href="http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/">http://www.root.cz/clanky/luajit-just-in-time-prekladac-pro-programovaci-jazyk-lua-12-preklad-operaci-s-realnymi-cisly/</a>
+</li>
+
+<li>Lua Profiler (GitHub)<br />
+<a href="https://github.com/luaforge/luaprofiler">https://github.com/luaforge/luaprofiler</a>
+</li>
+
+<li>Lua Profiler (LuaForge)<br />
+<a href="http://luaforge.net/projects/luaprofiler/">http://luaforge.net/projects/luaprofiler/</a>
+</li>
+
+<li>ctrace<br />
+<a href="http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/">http://webserver2.tecgraf.puc-rio.br/~lhf/ftp/lua/</a>
+</li>
+
+<li>The Lua VM, on the Web<br />
+<a href="https://kripken.github.io/lua.vm.js/lua.vm.js.html">https://kripken.github.io/lua.vm.js/lua.vm.js.html</a>
+</li>
+
+<li>Lua.vm.js REPL<br />
+<a href="https://kripken.github.io/lua.vm.js/repl.html">https://kripken.github.io/lua.vm.js/repl.html</a>
+</li>
+
+<li>lua2js<br />
+<a href="https://www.npmjs.com/package/lua2js">https://www.npmjs.com/package/lua2js</a>
+</li>
+
+<li>lua2js na GitHubu<br />
+<a href="https://github.com/basicer/lua2js-dist">https://github.com/basicer/lua2js-dist</a>
+</li>
+
+<li>Lua (programming language)<br />
+<a href="http://en.wikipedia.org/wiki/Lua_(programming_language)">http://en.wikipedia.org/wiki/Lua_(programming_language)</a>
+</li>
+
+<li>LuaJIT 2.0 SSA IR<br />
+<a href="http://wiki.luajit.org/SSA-IR-2.0">http://wiki.luajit.org/SSA-IR-2.0</a>
+</li>
+
+<li>The LuaJIT Project<br />
+<a href="http://luajit.org/index.html">http://luajit.org/index.html</a>
+</li>
+
+<li>LuaJIT FAQ<br />
+<a href="http://luajit.org/faq.html">http://luajit.org/faq.html</a>
+</li>
+
+<li>LuaJIT Performance Comparison<br />
+<a href="http://luajit.org/performance.html">http://luajit.org/performance.html</a>
+</li>
+
+<li>LuaJIT 2.0 intellectual property disclosure and research opportunities<br />
+<a href="http://article.gmane.org/gmane.comp.lang.lua.general/58908">http://article.gmane.org/gmane.comp.lang.lua.general/58908</a>
+</li>
+
+<li>LuaJIT Wiki<br />
+<a href="http://wiki.luajit.org/Home">http://wiki.luajit.org/Home</a>
+</li>
+
+<li>LuaJIT 2.0 Bytecode Instructions<br />
+<a href="http://wiki.luajit.org/Bytecode-2.0">http://wiki.luajit.org/Bytecode-2.0</a>
+</li>
+
+<li>Programming in Lua (first edition)<br />
+<a href="http://www.lua.org/pil/contents.html">http://www.lua.org/pil/contents.html</a>
+</li>
+
+<li>Lua 5.2 sources<br />
+<a href="http://www.lua.org/source/5.2/">http://www.lua.org/source/5.2/</a>
+</li>
+
+<li>REPL<br />
+<a href="https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop">https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop</a>
+</li>
+
+<li>The LLVM Compiler Infrastructure<br />
+<a href="http://llvm.org/ProjectsWithLLVM/">http://llvm.org/ProjectsWithLLVM/</a>
+</li>
+
+<li>clang: a C language family frontend for LLVM<br />
+<a href="http://clang.llvm.org/">http://clang.llvm.org/</a>
+</li>
+
+<li>LLVM Backend ("Fastcomp")<br />
+<a href="http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend">http://kripken.github.io/emscripten-site/docs/building_from_source/LLVM-Backend.html#llvm-backend</a>
+</li>
+
+<li>Lambda the Ultimate: Coroutines in Lua,<br />
+<a href="http://lambda-the-ultimate.org/node/438">http://lambda-the-ultimate.org/node/438</a>
+</li>
+
+<li>Coroutines Tutorial,<br />
+<a href="http://lua-users.org/wiki/CoroutinesTutorial">http://lua-users.org/wiki/CoroutinesTutorial</a>
+</li>
+
+<li>Lua Coroutines Versus Python Generators,<br />
+<a href="http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators">http://lua-users.org/wiki/LuaCoroutinesVersusPythonGenerators</a>
+</li>
+
+</ol>
+
+
+
+<p></p><p></p>
+<p><small>Autor: <a href="http://www.fit.vutbr.cz/~tisnovpa">Pavel Tišnovský</a> &nbsp; 2018</small></p>
+</body>
+</html>
+

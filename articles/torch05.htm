@@ -39,23 +39,23 @@
 
 <p><a href="#k01">1. Framework Torch: modul pro zpracování rastrových obrázků</a></p>
 <p><a href="#k02">2. Reprezentace rastrových obrázků v&nbsp;knihovně Torch</a></p>
-<p><a href="#k03">*** 3. Vytvoření obrázku ve stupních šedi z&nbsp;běžného 2D tenzoru</a></p>
-<p><a href="#k04">*** 4. Vytvoření RGB obrázku z&nbsp;3D tenzoru</a></p>
-<p><a href="#k05">*** 5. Načtení obrázku z&nbsp;externího souboru</a></p>
-<p><a href="#k06">*** 6. Standardní testovací obrázky aneb &bdquo;kam se poděla Lenna?&ldquo;</a></p>
-<p><a href="#k07">*** 7. Počet dimenzí a rozměry tenzoru s&nbsp;obrázkem</a></p>
-<p><a href="#k08">*** 8. Specifikace počtu barvových kanálů a typu komponent tenzoru při načtení obrázku</a></p>
+<p><a href="#k03">3. Vytvoření obrázku ve stupních šedi z&nbsp;běžného 2D tenzoru</a></p>
+<p><a href="#k04">4. Vytvoření RGB obrázku z&nbsp;3D tenzoru</a></p>
+<p><a href="#k05">5. Načtení obrázku z&nbsp;externího souboru</a></p>
+<p><a href="#k06">6. Standardní testovací obrázky aneb &bdquo;kam se poděla Lenna?&ldquo;</a></p>
+<p><a href="#k07">7. Počet dimenzí a rozměry tenzoru s&nbsp;obrázkem</a></p>
+<p><a href="#k08">8. Specifikace počtu barvových kanálů a typu komponent tenzoru při načtení obrázku</a></p>
 <p><a href="#k09">9. Základní operace (transformace) nad obrázkem</a></p>
-<p><a href="#k10">*** 10. Ořezání rastrového obrázku</a></p>
-<p><a href="#k11">*** 11. Posun pixelů</a></p>
-<p><a href="#k12">*** 12. Horizontální a vertikální zrcadlení</a></p>
-<p><a href="#k13">*** 13. Změna měřítka a volba aplikovaného filtru při výpočtu nového obrázku</a></p>
-<p><a href="#k14">*** 14. Rotace obrázku</a></p>
-<p><a href="#k15">*** 15. Význam konvolučních filtrů při práci s&nbsp;rastrovým obrazem</a></p>
-<p><a href="#k16">*** 16. Příklady jednoduchých 2D konvolučních filtrů</a></p>
-<p><a href="#k17">*** 17. Reprezentace jádra filtru a aplikace konvolučních filtrů v&nbsp;knihovně Torch</a></p>
-<p><a href="#k18">*** 18. Demonstrační příklad &ndash; použití konvolučních filtrů</a></p>
-<p><a href="#k19">*** 19. Repositář s&nbsp;demonstračními příklady</a></p>
+<p><a href="#k10">10. Ořezání rastrového obrázku</a></p>
+<p><a href="#k11">11. Posun pixelů</a></p>
+<p><a href="#k12">12. Horizontální a vertikální zrcadlení</a></p>
+<p><a href="#k13">13. Změna měřítka a volba aplikovaného filtru při výpočtu nového obrázku</a></p>
+<p><a href="#k14">14. Rotace obrázku</a></p>
+<p><a href="#k15">15. Význam konvolučních filtrů při práci s&nbsp;rastrovým obrazem</a></p>
+<p><a href="#k16">16. Příklady jednoduchých 2D konvolučních filtrů</a></p>
+<p><a href="#k17">17. Reprezentace jádra filtru a aplikace konvolučních filtrů v&nbsp;knihovně Torch</a></p>
+<p><a href="#k18">18. Demonstrační příklad &ndash; použití konvolučních filtrů</a></p>
+<p><a href="#k19">19. Repositář s&nbsp;demonstračními příklady</a></p>
 <p><a href="#k20">20. Odkazy na Internetu</a></p>
 
 
@@ -199,9 +199,27 @@ nejvyšší dimenze:</p>
 <p><a name="k03"></a></p>
 <h2 id="k03">3. Vytvoření obrázku ve stupních šedi z&nbsp;běžného 2D tenzoru</h2>
 
+<p>Poznámka: na začátku všech příkladů je nutné načíst modul
+<strong>image</strong>:</p>
+
 <pre>
 require("image")
 </pre>
+
+<p>ten načte všechny funkce z&nbsp;tohoto modulu (v&nbsp;interaktivním
+prostředí se vypíšou na terminál).</p>
+
+<p>Vzhledem k&nbsp;tomu, že z&nbsp;předchozího popisu již poměrně dobře známe
+způsob reprezentace rastrových obrázků v&nbsp;knihovně <i>Torch</i> a jejím
+modulu <strong>image</strong>, můžeme si vyzkoušet programové vytvoření
+jednoduchého obrázku obsahujícího černou mřížku na bílém pozadí. Černobílá
+mřížka může být reprezentována monochromatickým obrázkem uloženým do 2D matice.
+Nejprve tedy zkonstruujeme tenzor druhého řádu odpovídající velikosti (počet
+sloupců a řádků), dále naplníme jeho prvky konstantou reprezentující bílou
+barvu a následně ve dvojici programových smyček do tenzoru vložíme nulové prvky
+představující černou mřížku. Jedno z&nbsp;možných řešení může vypadat
+následovně (poznámka: teoreticky se můžeme smyček zcela zbavit použitím metody
+<strong>repeatTensor</strong>, výsledek však nebude příliš čitelný):</p>
 
 <pre>
 function createImageWithGrid(size, grid)
@@ -220,20 +238,39 @@ function createImageWithGrid(size, grid)
 end
 </pre>
 
+<p>Na konci příkladu je samozřejmě nutné vytvořený obrázek buď vykreslit na
+obrazovku s&nbsp;využitím knihovny <i>Qt</i> (rozhraní musí být nainstalováno
+společně s&nbsp;Torchem) nebo ho uložit do souboru. Formát souboru je
+automaticky odvozen z&nbsp;koncovky:</p>
+
 <pre>
 img = createImageWithGrid(SIZE, GRID)
-
+&nbsp;
 image.save("grid.png", img)
 </pre>
 
-*** image ***
-<p><i>Obrázek 1: Rastrový obrázek vygenerovaný funkcí
+<img src="https://i.iinfo.cz/images/693/torch5-1.png" class="image-310136" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 1: Rastrový obrázek vygenerovaný uživatelskou funkcí
 <strong>createImageWithGrid</strong>.</i></p>
 
 
 
 <p><a name="k04"></a></p>
 <h2 id="k04">4. Vytvoření RGB obrázku z&nbsp;3D tenzoru</h2>
+
+<p>Způsob programového vytvoření monochromatického obrázku jsme si popsali
+v&nbsp;předchozí kapitole, takže se nyní podívejme na to, jakým postupem je
+možné vygenerovat plnobarevný (<i>truecolor</i>) rastrový obrázek
+s&nbsp;využitím standardního barvového prostoru RGB. Víme již, že takový
+obrázek je v&nbsp;<i>Torchi</i> reprezentován tenzorem třetího řádu, konkrétně
+trojicí 2D matic, přičemž každá trojice nese informaci o jedné barvové složce
+pixelů (všechny tři matice samozřejmě budou mít shodné rozměry). Konstrukci
+tenzoru třetího řádu je možné v&nbsp;knihovně <i>Torch</i> provést různým
+způsobem, například z&nbsp;jednodimenzionálního vektoru funkcí
+<strong>reshape</strong> atd. My si však ukážeme pravděpodobně nejčitelnější
+způsob spočívající ve vytvoření 2D matic pro každou barvovou složku zvlášť
+s&nbsp;následným složením matic do tenzoru. Červená a modrá složka bude tvořena
+gradientním přechodem, zelená složka bude pro všechny pixely nulová:</p>
 
 <pre>
 function createRGBImage(size)
@@ -253,20 +290,40 @@ function createRGBImage(size)
 end
 </pre>
 
+<p>Obrázek po jeho vytvoření opět uložíme do souboru:</p>
+
 <pre>
 img2 = createRGBImage(SIZE)
 &nbsp;
 image.save("rgb.png", img2)
 </pre>
 
-*** image ***
-<p><i>Obrázek 2: Rastrový obrázek vygenerovaný funkcí
+<img src="https://i.iinfo.cz/images/693/torch5-2.png" class="image-310137" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 2: Rastrový obrázek vygenerovaný uživatelskou funkcí
 <strong>createRGBImage</strong>.</i></p>
+
+<p>Poznámka: pokud si pamatujete, jak byl uložen obraz v&nbsp;16barevných
+režimech VGA, nebude pro vás způsob reprezentace RGB obrázků
+v&nbsp;<i>Torchi</i> ničím zvláštní.</p>
 
 
 
 <p><a name="k05"></a></p>
 <h2 id="k05">5. Načtení obrázku z&nbsp;externího souboru</h2>
+
+<p>Rastrové obrázky se samozřejmě nemusí tvořit jen programově, ale je možné je
+načíst z&nbsp;externích souborů (což je v&nbsp;praxi mnohem častější). Načtení
+obrázku se provede funkcí <strong>image.load</strong>, které se
+v&nbsp;nejjednodušším případě předá jméno souboru. Z&nbsp;koncovky se odvozí
+jeho formát a pokud koncovka není specifikována, tak je formát odhadnut
+z&nbsp;obsahu souboru (to však nemusí být spolehlivá metoda, ostatně většinou
+není žádný důvod koncovky neuvádět). V&nbsp;dalších demonstračních příkladech
+budeme pracovat se slavným obrázkem Lenny, který však již z&nbsp;licenčních
+důvodů není přímo v&nbsp;Torchi dostupný (viz další kapitoly). Můžeme si však
+snadno pomoci následující trojicí funkcí, které zjistí, zda se v&nbsp;aktuálním
+adresáři obrázek Lenny nachází a pokud nikoli, dojde k&nbsp;jeho stažení
+z&nbsp;předem známé adresy. Samotné stažení je provedeno externím nástrojem
+<strong>wget</strong>:</p>
 
 <pre>
 require("image")
@@ -276,7 +333,7 @@ original_image_address = "https://upload.wikimedia.org/wikipedia/en/2/24/Lenna.p
 image_name = "lenna.png"
 &nbsp;
 &nbsp;
-function file_exists(filename)
+function <strong>file_exists</strong>(filename)
     local fin = io.open(filename,"r")
     if fin then
         io.close(fin)
@@ -287,13 +344,13 @@ function file_exists(filename)
 end
 &nbsp;
 &nbsp;
-function download_file(address, filename)
+function <strong>download_file</strong>(address, filename)
     local command = "wget -v -O " .. filename .. " " .. address
     os.execute(command)
 end
 &nbsp;
 &nbsp;
-function setup(address, filename)
+function <strong>setup</strong>(address, filename)
     if not file_exists(filename) then
         download_file(original_image_address, filename)
     end
@@ -303,22 +360,67 @@ end
 setup(original_image_address, image_name)
 </pre>
 
+<p>Poznámka: tyto tři funkce jsou vloženy do všech dalších příkladů a
+zajišťují, že se obrázek Lenny stáhne jen jedenkrát, samozřejmě za předpokladu,
+že ho nesmažete.</p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-3.png" class="image-310138" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 3: Obrázek Lenny stažený předchozím příkladem.</i></p>
+
 
 
 <p><a name="k06"></a></p>
 <h2 id="k06">6. Standardní testovací obrázky aneb &bdquo;kam se poděla Lenna?&ldquo;</h2>
 
+<p>Modul <strong>image</strong> obsahuje dvojici konstruktorů, které by &ndash;
+alespoň teoreticky &ndash; po svém zavolání měly vrátit tenzor obsahující
+standardní testovací obrázek. Tyto konstruktory se jmenují
+<strong>lena</strong> a <strong>fabio</strong>, ve skutečnosti však první
+konstruktor již v&nbsp;novějších verzích Torche nevrací standardní obrázek
+Lenny! Tento obrázek totiž byl z&nbsp;repositáře Torche odstraněn kvůli
+problémům s&nbsp;licencováním. Bližší informace je možné nalézt na GitHubu: <a
+href="https://github.com/torch/nn/issues/854">https://github.com/torch/nn/issues/854</a>
+a <a
+href="https://github.com/torch/image/commit/797fcb101b76c9b329b3ee83349b0f6adeacac94">https://github.com/torch/image/commit/797fcb101b76c9b329b3ee83349b0f6adeacac94</a>.
+Pokud tedy spustíte příkaz:</p>
+
 <pre>
+image.save("lenna?.png", image.lena())
 </pre>
+
+<p>dostanete obrázek Grace Hopper:</p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-4.png" class="image-310139" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 4: Obrázek vytvořený konstruktorem
+<strong>image.lena()</strong>.</i></p>
 
 
 
 <p><a name="k07"></a></p>
 <h2 id="k07">7. Počet dimenzí a rozměry tenzoru s&nbsp;obrázkem</h2>
 
+<p>Modul <strong>image</strong> obsahuje i pomocnou funkci nazvanou
+<strong>image.getSize</strong>. Této funkci se v&nbsp;řetězci předává jméno
+souboru s&nbsp;uloženým obrázkem a výsledkem jsou rozměry tohoto obrázku, a to
+bez nutnosti nahrání celého obrázku a jeho dekomprimace do operační paměti.
+Tato funkce se používá velmi snadno, což je patrné z&nbsp;dalšího příkladu:</p>
+
 <pre>
 print(image.getSize(image_name))
 </pre>
+
+<p>Po spuštění této funkce s&nbsp;předáním jména souboru s&nbsp;Lennou by se na
+standardní výstup měly vypsat tyto informace:</p>
+
+<pre>
+   3
+ 512
+ 512
+[torch.LongTensor of size 3]
+</pre>
+
+<p>Samozřejmě je možné získat i další informace o obrázku, protože již víme, že
+se nejedná o nic jiného, než o rozměrný tenzor:</p>
 
 <pre>
 function print_image_info(img)
@@ -333,19 +435,104 @@ function print_image_info(img)
 end
 </pre>
 
+<p>Pro testovací obrázek Lenny by tato funkce měla vypsat:</p>
+
+<pre>
+Element type:
+torch.DoubleTensor
+Dimensions:
+3
+Tensor shape:
+   3
+ 512
+ 512
+[torch.LongStorage of size 3]
+</pre>
+
 
 
 <p><a name="k08"></a></p>
 <h2 id="k08">8. Specifikace počtu barvových kanálů a typu komponent tenzoru při načtení obrázku</h2>
 
+<p>S&nbsp;funkcí <strong>image.load</strong> jsme se již setkali
+v&nbsp;předchozích kapitolách. Zbývá nám však popis dvou nepovinných parametrů
+této funkce. Pokud totiž za jménem obrázku uvedeme ještě celé číslo (typicky 1
+nebo 3), bude obrázek po načtení a dekódování upraven takovým způsobem, aby
+obsahovat dané množství kanálů. Jeden kanál je použit pro monochromatické
+obrázky reprezentované 2D maticí, tři kanály se používají především pro
+plnobarevné obrázky s&nbsp;barvami z&nbsp;prostoru RGB. Co to v&nbsp;praxi
+znamená? Obrázek Lenny je plnobarevný, takže se implicitně načte do tenzoru
+třetího řádu:</p>
+
 <pre>
 image1 = image.load(image_name)
+</pre>
+
+<p>Pokud však při načítání předáme funkci nepovinný parametr 1, provede se
+konverze na monochromatický obrázek:</p>
+
+<pre>
 image2 = image.load(image_name, 1)
+</pre>
+
+<p>To však není vše, protože je podporován ještě třetí nepovinný parametr,
+kterým je možné specifikovat typy komponent (prvků) výsledného tenzoru
+s&nbsp;bitmapou. Typ se předává jako řetězec, takže následující příkaz umožní
+načtení plnobarevného obrázku a jeho následnou konverzi na obrázek
+monochromatický, přičemž každý pixel je reprezentován jediným bajtem (a nikoli
+například hodnotou typu <i>double</i>):</p>
+
+<pre>
 image3 = image.load(image_name, 1, 'byte')
+</pre>
+
+<img src="https://i.iinfo.cz/images/693/torch5-5.png" class="image-310140" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 5: Původně RGB obrázek, který byl konvertován do stupňů
+šedi.</i></p>
+
+<p>O výsledku se můžeme snadno přesvědčit spuštěním těchto příkazů:</p>
+
+<pre>
 &nbsp;
 print_image_info(image1)
 print_image_info(image2)
 print_image_info(image3)
+</pre>
+
+<p>Na standardní výstup by se mělo vypsat:</p>
+
+<pre>
+Element type:
+<strong>torch.DoubleTensor</strong>
+Dimensions:
+<strong>3</strong>
+Tensor shape:
+   3
+ 512
+ 512
+[torch.LongStorage of size 3]
+&nbsp;
+&nbsp;
+&nbsp;
+Element type:
+<strong>torch.DoubleTensor</strong>
+Dimensions:
+<strong>2</strong>
+Tensor shape:
+ 512
+ 512
+[torch.LongStorage of size 2]
+&nbsp;
+&nbsp;
+&nbsp;
+Element type:
+<strong>torch.ByteTensor</strong>
+Dimensions:
+<strong>2</strong>
+Tensor shape:
+ 512
+ 512
+[torch.LongStorage of size 2]
 </pre>
 
 
@@ -365,13 +552,13 @@ příkladech. Všechny základní transformace podporované modulem
 
 <table>
 <tr><th>Funkce</th><th>Kapitola</th><th>Význam</th></tr>
-<tr><td>image.crop</td><td><a href="#k09">9</a></td><td>ořezání obrázku osově orientovaným obdélníkem</td></tr>
-<tr><td>image.translate</td><td><a href="#k10">10</a></td><td>posun všech pixelů v&nbsp;obrázku zadaným směrem</td></tr>
-<tr><td>image.hflip</td><td><a href="#k11">11</a></td><td>horizontální zrcadlení (okolo osy y)</td></tr>
-<tr><td>image.vflip</td><td><a href="#k11">11</a></td><td>vertikální zrcadlení (okolo osy x)</td></tr>
-<tr><td>image.flip</td><td><a href="#k11">11</a></td><td>zrcadlení okolo zvolené osy či dokonce &bdquo;rotace&ldquo; barev</td></tr>
-<tr><td>image.scale</td><td><a href="#k12">12</a></td><td>zvětšení či zmenšení obrázku se specifikací rozlišení výsledku</td></tr>
-<tr><td>image.rotate</td><td><a href="#k13">13</a></td><td>rotace obsahu obrázku se zachování jeho původního rozlišení</td></tr>
+<tr><td>image.crop</td><td><a href="#k10">10</a></td><td>ořezání obrázku osově orientovaným obdélníkem</td></tr>
+<tr><td>image.translate</td><td><a href="#k11">11</a></td><td>posun všech pixelů v&nbsp;obrázku zadaným směrem</td></tr>
+<tr><td>image.hflip</td><td><a href="#k12">12</a></td><td>horizontální zrcadlení (okolo osy y)</td></tr>
+<tr><td>image.vflip</td><td><a href="#k12">12</a></td><td>vertikální zrcadlení (okolo osy x)</td></tr>
+<tr><td>image.flip</td><td><a href="#k12">12</a></td><td>zrcadlení okolo zvolené osy či dokonce &bdquo;rotace&ldquo; barev</td></tr>
+<tr><td>image.scale</td><td><a href="#k13">13</a></td><td>zvětšení či zmenšení obrázku se specifikací rozlišení výsledku</td></tr>
+<tr><td>image.rotate</td><td><a href="#k14">14</a></td><td>rotace obsahu obrázku se zachování jeho původního rozlišení</td></tr>
 </table>
 
 <p>Všechny operace jako svůj první volitelný parametr akceptují tenzor, do
@@ -386,6 +573,14 @@ procedurální.</p>
 <p><a name="k10"></a></p>
 <h2 id="k10">10. Ořezání rastrového obrázku</h2>
 
+<p>Základní operací určenou pro zpracování rastrových obrázků je jejich ořez
+funkcí <strong>image.crop</strong>. Ve své základní podobě se této funkci
+předává pětice parametrů &ndash; zdrojový rastrový obrázek, souřadnice [x,y]
+levého horního rohu ořezového obdélníku a souřadnice [x,y] pravého dolního
+rohu. Ořezový obdélník je vždy orientován stejně, jako souřadné osy.</p>
+
+<p>Podívejme se na příklad použití:</p>
+
 <pre>
 image1 = image.load(image_name)
 image2 = image.load(image_name, 1)
@@ -399,6 +594,23 @@ print_image_info(image2crop)
 image.save("cropped1box.png", image1crop)
 image.save("cropped2box.png", image2crop)
 </pre>
+
+<img src="https://i.iinfo.cz/images/693/torch5-6.png" class="image-310141" alt="&#160;" width="200" height="200" />
+<p><i>Obrázek 6: Oříznutí rastrového obrázku obdélníkem.</i></p>
+
+<p>Alternativně je možné funkci <strong>image.crop</strong> předat pouze
+rozměry ořezového obdélníku a pomocí krátkého řetězce specifikovat, zda má být
+obdélník ve zdrojovém obrázku vycentrován či zda má být umístěn do některého
+z&nbsp;rohů:</p>
+
+<pre>
+croppedImage = image.crop(sourceImage, format, width, height)
+</pre>
+
+<p>Řetězec <strong>format</strong> může obsahovat text: "c", "tl", "tr", "bl",
+"br" (c=centre, t=top, b=bottom, l=left, r=right).</p>
+
+<p>Opět se podívejme na příklad použití:</p>
 
 <pre>
 function cropAndSaveImage(source, format, width, height, order)
@@ -417,25 +629,63 @@ for _, format in ipairs(formats) do
 end
 </pre>
 
+<img src="https://i.iinfo.cz/images/693/torch5-7.png" class="image-310142" alt="&#160;" width="250" height="150" />
+<p><i>Obrázek 7: Oříznutí rastrového obrázku okolo středu.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-8.png" class="image-310143" alt="&#160;" width="250" height="150" />
+<p><i>Obrázek 8: Levý horní roh obrázku.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-9.png" class="image-310144" alt="&#160;" width="250" height="150" />
+<p><i>Obrázek 9: Pravý dolní roh obrázku.</i></p>
+
 
 
 <p><a name="k11"></a></p>
 <h2 id="k11">11. Posun pixelů</h2>
+
+<p>Další jednoduchou operací prováděnou nad rastrovými obrázky je posun pixelů
+v&nbsp;zadaném směru. Směr je specifikován dvojicí skalárních hodnot dx, dy,
+tedy nikoli tenzorem. Tyto hodnoty určují vektor posunu. Velikost výsledného
+obrázku je shodná s&nbsp;obrázkem původním, což znamená, že hodnoty některých
+pixelů se ztratí a nové pixely budou mít implicitně černou barvu. Ostatně se o
+tom můžeme velmi snadno přesvědčit posunem obrázku o 64 pixelů doprava a
+dolů:</p>
 
 <pre>
 lenna = image.load(image_name)
 &nbsp;
 translated = image.translate(lenna, 64, 64)
 image.save("translated.png", translated)
-&nbsp;
+</pre>
+
+<img src="https://i.iinfo.cz/images/693/torch5-10.png" class="image-310145" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 10: Testovací bitmapa posunutá o 64 pixelů dolů a
+doprava.</i></p>
+
+<p>Pokud obrázek posuneme směrem zpět, původní hodnoty pixelů se neobnoví a
+celý okraj o šířce 32 pixelů bude černý:</p>
+
+<pre>
 translated_back = image.translate(translated, -32, -32)
 image.save("translated_back.png", translated_back)
 </pre>
+
+<img src="https://i.iinfo.cz/images/693/torch5-11.png" class="image-310146" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 11: Při posunu zpět zjistíme, že se hodnoty původních pixelů
+ztratily.</i></p>
 
 
 
 <p><a name="k12"></a></p>
 <h2 id="k12">12. Horizontální a vertikální zrcadlení</h2>
+
+<p>Další jednoduchou operací je horizontální a vertikální zrcadlení (či možná
+lépe řečeno převrácení) obrazu. To lze provést funkcemi nazvanými
+<strong>image.hflip</strong> (<i>horizontal flip</i>) a
+<strong>image.vflip</strong> (<i>vertical flip</i>). Interně se skutečně
+prohodí komponenty tenzorů, na rozdíl od některých jiných knihoven, které si
+pouze zapamatují příznak zrcadlení. Otestování chování těchto dvou funkcí je
+jednoduché:</p>
 
 <pre>
 lenna = image.load(image_name)
@@ -445,6 +695,24 @@ image.save("horizontal_flip.png", hflip)
 &nbsp;
 vflip = image.vflip(lenna)
 image.save("vertical_flip.png", vflip)
+</pre>
+
+<img src="https://i.iinfo.cz/images/693/torch5-12.png" class="image-310147" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 12: Výsledek operace <strong>image.hflip</strong>.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-13.png" class="image-310148" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 13: Výsledek operace <strong>image.vflip</strong>.</i></p>
+
+<p>Ve skutečnosti existuje ještě jedna &bdquo;zrcadlící&ldquo; funkce nazvaná
+<strong>image.flip</strong>. Této funkci je kromě zdrojového obrázku nutné
+předat i dimenzi, okolo které se má zrcadlení provést. Tato funkce je tedy
+obecnější, než obě výše zmíněné funkce <strong>image.hflip</strong> a
+<strong>image.vflip</strong>, ovšem navíc je ještě možné provést zrcadlení
+okolo první dimenze, což u barevných obrázků (RGB) znamená prohození červené a
+modré barové složky! Ostatně, můžeme si to snadno vyzkoušet:</p>
+
+<pre>
+lenna = image.load(image_name)
 &nbsp;
 flip_d1 = image.flip(lenna, 1)
 image.save("flip_dimension1.png", flip_d1)
@@ -456,10 +724,36 @@ flip_d3 = image.flip(lenna, 3)
 image.save("flip_dimension3.png", flip_d3)
 </pre>
 
+<img src="https://i.iinfo.cz/images/693/torch5-14.png" class="image-310149" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 14: Výsledek zrcadlení okolo první dimenze (prohození barvových složek).</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-15.png" class="image-310150" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 15: Výsledek zrcadlení okolo druhé dimenze.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-16.png" class="image-310151" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 16: Výsledek zrcadlení okolo třetí dimenze.</i></p>
+
+<p>Poznámka: samozřejmě je možné použít i další funkce pro práci
+s&nbsp;tenzory, například <strong>transpose</strong> atd. pro dosažení dalších
+podobných transformací.</p>
+
 
 
 <p><a name="k13"></a></p>
 <h2 id="k13">13. Změna měřítka a volba aplikovaného filtru při výpočtu nového obrázku</h2>
+
+<p>Poněkud složitější operace jsou prováděny při změně měřítka obrázku, protože
+je možné si zvolit, <a
+href="https://en.wikipedia.org/wiki/Comparison_gallery_of_image_scaling_algorithms">jaký
+algoritmus</a> se bude při změně měřítka aplikovat. Uživatel si může zvolit
+jeden ze tří základních algoritmů: výběr nejbližšího bodu, bilineární filtraci
+či filtraci bikubickou (všechny tři možnosti jsou ukázány na výše linkované
+stránce). Při změně měřítka obrázku je nutné specifikovat jeho nové rozměry
+(jednotkou jsou vždy pixely) a taktéž je možné řetězcem specifikovat použitý
+algoritmus/filtr. Vyzkoušejme si tedy z&nbsp;obrázku Lenny získat jeho
+středovou část o rozměrech 100&times;66 pixelů, kterou následně šestkrát
+zvětšíme na obrázky o rozměrech 600&times;400 pixelů (povšimněte si, že
+vertikálně není zvětšení přesně šestinásobné, což však vůbec nevadí):</p>
 
 <pre>
 lenna = image.load(image_name)
@@ -477,7 +771,24 @@ print_image_info(scaled_bicubic)
 image.save("scaled_simple.png", scaled_simple)
 image.save("scaled_bilinear.png", scaled_bilinear)
 image.save("scaled_bicubic.png", scaled_bicubic)
-&nbsp;
+</pre>
+
+<p>Výsledky:</p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-17.png" class="image-310152" alt="&#160;" width="600" height="400" />
+<p><i>Obrázek 17: Zvětšení při použití algoritmu/filtru &bdquo;nearest&ldquo;.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-18.png" class="image-310153" alt="&#160;" width="600" height="400" />
+<p><i>Obrázek 18: Zvětšení při použití bilineární filtrace.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-19.png" class="image-310154" alt="&#160;" width="600" height="400" />
+<p><i>Obrázek 19: Zvětšení při použití bikubické filtrace.</i></p>
+
+<p>Zajímavější bude zjistit, jak se zvětší jednoduchá mřížka, která bude mít
+šířku stran nastavenou na dva pixely (sami si vyzkoušejte, co se stane ve
+chvíli, kdy je šířka pouhý jeden pixel):</p>
+
+<pre>
 grid = createImageWithGrid(SIZE, GRID)
 &nbsp;
 croppedGrid = image.crop(grid, "c", SIZE/4, SIZE/4)
@@ -491,10 +802,30 @@ image.save("grid_scaled_bilinear.png", scaled_bilinear)
 image.save("grid_scaled_bicubic.png", scaled_bicubic)
 </pre>
 
+<p>Výsledky:</p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-20.png" class="image-310155" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 20: Zvětšení mřížky při použití algoritmu/filtru &bdquo;nearest&ldquo;.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-21.png" class="image-310156" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 21: Zvětšení mřížky při použití bilineární filtrace.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-22.png" class="image-310157" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 22: Zvětšení mřížky při použití bikubické filtrace.</i></p>
+
 
 
 <p><a name="k14"></a></p>
 <h2 id="k14">14. Rotace obrázku</h2>
+
+<p>Nejsložitější (základní) operací, kterou lze s&nbsp;obrázkem provádět, je
+jeho rotace. Obrázek se otáčí okolo svého středu a úhel se zadává
+v&nbsp;radiánech. Kromě toho je možné specifikovat, jakým způsobem se vypočtou
+barvy pixelů výsledného obrázku. Buď se použije barva nejbližšího pixelu nebo
+se aplikuje (pomalejší) bilineární filtrace na základě barev sousedních pixelů
+původního obrázku. Podívejme se nyní na rotaci testovacího obrázku Lenny o
+5&deg; a o 45&deg;. Pro převod mezi stupni a radiány se použije standardní
+funkce <strong>math.rad</strong>:</p>
 
 <pre>
 lenna = image.load(image_name)
@@ -513,7 +844,30 @@ image.save("rotated5_bilinear.png", rotated5_bilinear)
 &nbsp;
 image.save("rotated45_simple.png", rotated45_simple)
 image.save("rotated45_bilinear.png", rotated45_bilinear)
-&nbsp;
+</pre>
+
+<p>Výsledky:</p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-23.png" class="image-310158" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 23: Rotace obrázku Lenny o 45&deg; při použití algoritmu pro
+nalezení nejbližšího pixelu.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-24.png" class="image-310159" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 24: Rotace obrázku Lenny o 45&deg; při použití bikubické
+filtrace.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-25.png" class="image-310160" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 25: Rotace obrázku Lenny o 5&deg; při použití algoritmu pro
+nalezení nejbližšího pixelu.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-26.png" class="image-310161" alt="&#160;" width="512" height="512" />
+<p><i>Obrázek 26: Rotace obrázku Lenny o 5&deg; při použití bikubické
+filtrace.</i></p>
+
+<p>Rozdíl mezi oběma algoritmy (nejbližší pixel versus bilineární filtrace) je
+lépe patrný u rotace mřížky:</p>
+
+<pre>
 grid = createImageWithGrid(SIZE, GRID)
 &nbsp;
 rotated5_simple = image.rotate(grid, angle5, "simple")
@@ -529,29 +883,73 @@ image.save("grid_rotated45_simple.png", rotated45_simple)
 image.save("grid_rotated45_bilinear.png", rotated45_bilinear)
 </pre>
 
+<img src="https://i.iinfo.cz/images/693/torch5-27.png" class="image-310162" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 27: Rotace obrázku s&nbsp;mřížkou o 45&deg; při použití algoritmu
+pro nalezení nejbližšího pixelu.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-28.png" class="image-310163" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 28: Rotace obrázku s&nbsp;mřížkou o 45&deg; při použití bikubické
+filtrace.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-29.png" class="image-310164" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 29: Rotace obrázku s&nbsp;mřížkou o 5&deg; při použití algoritmu
+pro nalezení nejbližšího pixelu.</i></p>
+
+<img src="https://i.iinfo.cz/images/693/torch5-30.png" class="image-310165" alt="&#160;" width="256" height="256" />
+<p><i>Obrázek 30: Rotace obrázku s&nbsp;mřížkou o 5&deg; při použití bikubické
+filtrace.</i></p>
+
 
 
 <p><a name="k15"></a></p>
 <h2 id="k15">15. Význam konvolučních filtrů při práci s&nbsp;rastrovým obrazem</h2>
 
-<p>Pod pojmem filtrace si můžeme představit soubor lokálních transformací rastrového obrazu, kterými se v&nbsp;případě monochromatických obrazů převádí hodnoty jasu původního obrazu na nové hodnoty jasu obrazu výstupního. Barevný obraz si můžeme pro účely filtrace představit jako tři monochromatické obrazy, z&nbsp;nichž každý obsahuje jas jedné barvové složky (povšimněte si, že to přesně odpovídá způsobu uložení barevných obrázků ve frameworku <i>Torch</i>). Podle vlastností funkčního vztahu pro výpočet jasu výsledného okolí na základě okolí O ve vstupním obrazu můžeme rozdělit metody filtrace na lineární a nelineární.</p>
+<p>Velmi užitečná funkce z&nbsp;modulu <strong>image</strong> se skrývá pod
+jménem <strong>image.convolve</strong>. Ta slouží k&nbsp;aplikaci konvolučního
+filtru na obrázky. Pod pojmem filtrace si přitom můžeme představit soubor
+lokálních transformací rastrového obrazu, kterými se v&nbsp;případě
+monochromatických obrazů převádí hodnoty jasu původního obrazu na nové hodnoty
+jasu obrazu výstupního. Barevný obraz si můžeme pro účely filtrace představit
+jako tři monochromatické obrazy, z&nbsp;nichž každý obsahuje jas jedné barvové
+složky (povšimněte si, že to přesně odpovídá způsobu uložení barevných obrázků
+ve frameworku <i>Torch</i>). Podle vlastností funkčního vztahu pro výpočet jasu
+výsledného okolí na základě okolí O ve vstupním obrazu můžeme rozdělit metody
+filtrace na lineární a nelineární.</p>
 
-<p>Lineární operace vyjadřují výslednou hodnotu jasu jako konvoluci okolí O příslušného bodu (i, j) a takzvaného konvolučního jádra (<i>kernel</i>). Mezi postupy předzpracování obrazu patří i algoritmy obnovení, které se obvykle také vyjadřují ve formě konvoluce. Okolím O, které se používá k&nbsp;výpočtu, je ale celý obraz. Jedná se tedy o výpočetně velmi náročnou operaci. Obnovení se používá pro odstranění poruch s&nbsp;předem známými vlastnostmi jako například rozostření objektivu nebo rozmazání vlivem pohybu při snímání.</p>
+<p>Lineární operace vyjadřují výslednou hodnotu jasu jako konvoluci okolí O
+příslušného bodu [i, j] a takzvaného konvolučního jádra (<i>kernel</i>). Mezi
+postupy předzpracování obrazu patří i algoritmy obnovení, které se obvykle také
+vyjadřují ve formě konvoluce. Okolím O, které se používá k&nbsp;výpočtu, je ale
+obecně celý obraz. Jedná se tedy o výpočetně velmi náročnou operaci. Obnovení
+se používá pro odstranění poruch s&nbsp;předem známými vlastnostmi jako
+například rozostření objektivu nebo rozmazání vlivem pohybu při snímání.</p>
 
-<p>V&nbsp;dalším textu se však budeme zabývat pouze velmi jednoduchými konvolučními filtry, které pracují nad poměrně malým okolím zpracovávaných pixelů. Velikost konvolučního jádra určuje i velikost zpracovávaného okolí.</p>
+<p>V&nbsp;dalším textu se však budeme zabývat pouze velmi jednoduchými
+konvolučními filtry, které pracují nad poměrně malým okolím zpracovávaných
+pixelů. Velikost konvolučního jádra určuje i velikost zpracovávaného okolí.</p>
 
-Nejpoužívanějším konvolučním filtrem je při práci s rastrovými obrazy bezesporu dvojdimenzionální konvoluční filtr. Jeho užitečnost spočívá především ve velkých možnostech změny rastrového obrazu, které přesahují možnosti jednodimenzionálních filtrů. Pomocí dvojdimenzionálních konvolučních filtrů je možné provádět ostření obrazu, rozmazávání, zvýrazňování hran nebo tvorbu reliéfů (vytlačeného vzoru) ze zadaného rastrového obrazu.
+<p>Nejpoužívanějším konvolučním filtrem je při práci s&nbsp;rastrovými obrazy
+bezesporu dvojdimenzionální konvoluční filtr. Jeho užitečnost spočívá především
+ve velkých možnostech změny rastrového obrazu, které přesahují možnosti
+jednodimenzionálních filtrů. Pomocí dvojdimenzionálních konvolučních filtrů je
+možné provádět ostření obrazu, rozmazávání, zvýrazňování hran nebo tvorbu
+reliéfů (vytlačeného vzoru) ze zadaného rastrového obrazu. Navíc je možné
+filtry řetězit a dosahovat tak různých složitějších efektů.</p>
 
 
 
 <p><a name="k16"></a></p>
 <h2 id="k16">16. Příklady jednoduchých 2D konvolučních filtrů</h2>
 
+<p>Podívejme se na několik často používaných konvolučních filtrů, které
+většinou mají jádro o velikosti 3&times;3.</p>
+
 <p>Obyčejné průměrování filtruje obraz tím, že nová hodnota jasu se spočítá
 jako aritmetický průměr jasu čtvercového nebo (méně často) obdélníkového okolí.
 Velikost skvrn šumu by měla být menší než velikost okolí a to by mělo být menší
 než nejmenší významný detail v&nbsp;obrazu, což je sice pěkná teorie, ovšem
-těžko dosažitelná. Vždy ale dojde k&nbsp;rozmazání hran.</p>
+těžko dosažitelná. Při aplikaci tohoto filtru vždy dojde k&nbsp;rozmazání
+hran.</p>
 
 <p>Konvoluční jádro filtru velikosti 3&times;3 pro obyčejné průměrování má
 tvar:</p>
@@ -599,9 +997,9 @@ h= | 0  0  0|
 <p><a name="k17"></a></p>
 <h2 id="k17">17. Reprezentace jádra filtru a aplikace konvolučních filtrů v&nbsp;knihovně Torch</h2>
 
-<pre>
-lenna = image.load(image_name)
-</pre>
+<p>Jádro konvolučního filtru je, podobně jako samotný obrázek, reprezentováno
+tenzorem. Nejběžnější filtry mají jádro o velikosti 3&times;3, které lze
+nastavit například takto:</p>
 
 <pre>
 kernel = torch.Tensor({{ 1, 1, 1},
@@ -609,8 +1007,29 @@ kernel = torch.Tensor({{ 1, 1, 1},
                        { 1, 1, 1}})
 </pre>
 
+<p>Součet vah by měl být roven jedné (a nikoli devíti), což napravíme velmi
+snadno s&nbsp;využitím přetíženého operátoru / a funkce
+<strong>torch.sum</strong> (viz předchozí části seriálu):</p>
+
+<pre>
+kernel = kernel / torch.sum(kernel)
+</pre>
+
+<p>Nyní již můžeme načíst obrázek:</p>
+
+<pre>
+lenna = image.load(image_name)
+</pre>
+
+<p>Dále můžeme na načtený obrázek aplikovat konvoluční filtr:</p>
+
 <pre>
 target_image = image.convolve(source_image, kernel)
+</pre>
+
+<p>A uložit výsledek do nového souboru:</p>
+
+<pre>
 image.save(filename, target_image)
 </pre>
 
@@ -618,6 +1037,10 @@ image.save(filename, target_image)
 
 <p><a name="k18"></a></p>
 <h2 id="k18">18. Demonstrační příklad &ndash; použití konvolučních filtrů</h2>
+
+<p>V&nbsp;dnešním posledním demonstračním příkladu si ukážeme použití vybraných
+konvolučních filtrů. Pro aplikaci filtru, výpis jádra filtru a uložení
+výsledného obrázku bude sloužit tato pomocná funkce:</p>
 
 <pre>
 function convoluteAndSaveImage(source_image, kernel, filename)
@@ -633,6 +1056,8 @@ setup(original_image_address, image_name)
 lenna = image.load(image_name)
 </pre>
 
+<p>Aplikace nejjednoduššího rozmazávacího filtru s&nbsp;jádrem 3&times;3:</p>
+
 <pre>
 kernel = torch.Tensor({{ 1, 1, 1},
                        { 1, 1, 1},
@@ -643,6 +1068,11 @@ kernel = kernel / torch.sum(kernel)
 convoluteAndSaveImage(lenna, kernel, "box_blur_3x3.png")
 </pre>
 
+<img src="https://i.iinfo.cz/images/693/torch5-31.png" class="image-310166" alt="&#160;" width="510" height="510" />
+<p><i>Obrázek 31: Výsledek aplikace rozmazávacího filtru s&nbsp;jádrem 3&times;3.</i></p>
+
+<p>Aplikace nejjednoduššího rozmazávacího filtru s&nbsp;jádrem 5&times;5:</p>
+
 <pre>
 kernel = torch.Tensor(5, 5)
 kernel:fill(1)
@@ -651,6 +1081,11 @@ kernel = kernel / torch.sum(kernel)
 &nbsp;
 convoluteAndSaveImage(lenna, kernel, "box_blur_5x5.png")
 </pre>
+
+<img src="https://i.iinfo.cz/images/693/torch5-32.png" class="image-310167" alt="&#160;" width="508" height="508" />
+<p><i>Obrázek 32: Výsledek aplikace rozmazávacího filtru s&nbsp;jádrem 5&times;5.</i></p>
+
+<p>Rozmazání pomocí Gaussovského filtru:</p>
 
 <pre>
 kernel = torch.Tensor({{ 1, 2, 1},
@@ -662,6 +1097,11 @@ kernel = kernel / torch.sum(kernel)
 convoluteAndSaveImage(lenna, kernel, "gaussian_blur.png")
 </pre>
 
+<img src="https://i.iinfo.cz/images/693/torch5-33.png" class="image-310168" alt="&#160;" width="510" height="510" />
+<p><i>Obrázek 33: Výsledek aplikace Gaussovského rozmazávacího filtru s&nbsp;jádrem 3&times;3.</i></p>
+
+<p>Zaostřovací filtr:</p>
+
 <pre>
 kernel = torch.Tensor({{ 0,-1, 0},
                        {-1, 5,-1},
@@ -669,6 +1109,11 @@ kernel = torch.Tensor({{ 0,-1, 0},
 &nbsp;
 convoluteAndSaveImage(lenna, kernel, "sharpen.png")
 </pre>
+
+<img src="https://i.iinfo.cz/images/693/torch5-34.png" class="image-310169" alt="&#160;" width="510" height="510" />
+<p><i>Obrázek 34: Výsledek aplikace zaostřovacího filtru.</i></p>
+
+<p>Směrově nezávislá detekce hran:</p>
 
 <pre>
 kernel = torch.Tensor({{-1,-1,-1},
@@ -678,6 +1123,11 @@ kernel = torch.Tensor({{-1,-1,-1},
 convoluteAndSaveImage(lenna, kernel, "edge_detect.png")
 </pre>
 
+<img src="https://i.iinfo.cz/images/693/torch5-35.png" class="image-310170" alt="&#160;" width="510" height="510" />
+<p><i>Obrázek 35: Výsledek směrově nezávislé detekce hran.</i></p>
+
+<p>Sobelův operátor:</p>
+
 <pre>
 kernel = torch.Tensor({{ 1, 2, 1},
                        { 0, 0, 0},
@@ -686,11 +1136,22 @@ kernel = torch.Tensor({{ 1, 2, 1},
 convoluteAndSaveImage(lenna, kernel, "sobel.png")
 </pre>
 
+<img src="https://i.iinfo.cz/images/693/torch5-36.png" class="image-310171" alt="&#160;" width="510" height="510" />
+<p><i>Obrázek 36: Výsledek aplikace Sobelova operátoru.</i></p>
+
+<p>Detekce vertikálních hran (v&nbsp;jednom směru):</p>
+
 <pre>
 kernel = torch.Tensor({{-1, 1}})
 &nbsp;
 convoluteAndSaveImage(lenna, kernel, "vertical_edge_detect.png")
 </pre>
+
+<img src="https://i.iinfo.cz/images/693/torch5-37.png" class="image-310172" alt="&#160;" width="511" height="512" />
+<p><i>Obrázek 37: Výsledek detekce vertikálních hran (v&nbsp;jednom
+směru).</i></p>
+
+<p>Detekce horizontálních hran (v&nbsp;jednom směru):</p>
 
 <pre>
 kernel = torch.Tensor({{-1},
@@ -699,25 +1160,32 @@ kernel = torch.Tensor({{-1},
 convoluteAndSaveImage(lenna, kernel, "horizontal_edge_detect.png")
 </pre>
 
+<img src="https://i.iinfo.cz/images/693/torch5-38.png" class="image-310173" alt="&#160;" width="512" height="511" />
+<p><i>Obrázek 38: Výsledek detekce horizontálních hran (v&nbsp;jednom
+směru).</i></p>
+
 
 
 <p><a name="k19"></a></p>
 <h2 id="k19">19. Repositář s&nbsp;demonstračními příklady</h2>
 
-<p></p>
+<p>Všechny demonstrační příklady, které jsme si popsali v&nbsp;předchozích
+kapitolách, najdete v&nbsp;GIT repositáři dostupném na adrese <a
+href="https://github.com/tisnik/torch-examples.git">https://github.com/tisnik/torch-examples.git</a>.
+Následují odkazy na zdrojové kódy jednotlivých příkladů:</p>
 
 <table>
 <tr><th>Příklad</th><th>Adresa</th></tr>
-<tr><td>01_image_from_tensor.lua</td><td><a href="01_image_from_tensor.lua">01_image_from_tensor.lua</a></td></tr>
-<tr><td>02_download_image.lua   </td><td><a href="02_download_image.lua   ">02_download_image.lua   </a></td></tr>
-<tr><td>03_image_get_size.lua   </td><td><a href="03_image_get_size.lua   ">03_image_get_size.lua   </a></td></tr>
-<tr><td>04_tensor_type.lua      </td><td><a href="04_tensor_type.lua      ">04_tensor_type.lua      </a></td></tr>
-<tr><td>05_crop.lua             </td><td><a href="05_crop.lua             ">05_crop.lua             </a></td></tr>
-<tr><td>06_translate.lua        </td><td><a href="06_translate.lua        ">06_translate.lua        </a></td></tr>
-<tr><td>07_flip.lua             </td><td><a href="07_flip.lua             ">07_flip.lua             </a></td></tr>
-<tr><td>08_rescale.lua          </td><td><a href="08_rescale.lua          ">08_rescale.lua          </a></td></tr>
-<tr><td>09_rotate.lua           </td><td><a href="09_rotate.lua           ">09_rotate.lua           </a></td></tr>
-<tr><td>10_convolution.lua      </td><td><a href="10_convolution.lua      ">10_convolution.lua      </a></td></tr>
+<tr><td>01_image_from_tensor.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/01_image_from_tensor.lua">https://github.com/tisnik/torch-examples/blob/master/image/01_image_from_tensor.lua</a></td></tr>
+<tr><td>02_download_image.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/02_download_image.lua">https://github.com/tisnik/torch-examples/blob/master/image/02_download_image.lua</a></td></tr>
+<tr><td>03_image_get_size.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/03_image_get_size.lua">https://github.com/tisnik/torch-examples/blob/master/image/03_image_get_size.lua</a></td></tr>
+<tr><td>04_tensor_type.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/04_tensor_type.lua">https://github.com/tisnik/torch-examples/blob/master/image/04_tensor_type.lua</a></td></tr>
+<tr><td>05_crop.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/05_crop.lua">https://github.com/tisnik/torch-examples/blob/master/image/05_crop.lua</a></td></tr>
+<tr><td>06_translate.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/06_translate.lua">https://github.com/tisnik/torch-examples/blob/master/image/06_translate.lua</a></td></tr>
+<tr><td>07_flip.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/07_flip.lua">https://github.com/tisnik/torch-examples/blob/master/image/07_flip.lua</a></td></tr>
+<tr><td>08_rescale.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/08_rescale.lua">https://github.com/tisnik/torch-examples/blob/master/image/08_rescale.lua</a></td></tr>
+<tr><td>09_rotate.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/09_rotate.lua">https://github.com/tisnik/torch-examples/blob/master/image/09_rotate.lua</a></td></tr>
+<tr><td>10_convolution.lua</td><td><a href="https://github.com/tisnik/torch-examples/blob/master/image/10_convolution.lua">https://github.com/tisnik/torch-examples/blob/master/image/10_convolution.lua</a></td></tr>
 </table>
 
 
